@@ -77,14 +77,13 @@
       padding: 0;
       line-height: 1;
       caret-color: var(--dim);
+      resize: none;
+      overflow: hidden;
+      -webkit-appearance: none;
+      appearance: none;
     }
 
-    @keyframes label-cursor {
-      0%, 49% { opacity: 0.2; }
-      50%, 100% { opacity: 0; }
-    }
-    #label-input::placeholder { color: var(--dim); }
-    #label-input:not(:focus)::placeholder { animation: label-cursor 1.2s step-start infinite; }
+    #label-input::placeholder { color: var(--card); }
     #label-input:focus::placeholder { opacity: 0; }
 
     #tomato-row {
@@ -249,7 +248,7 @@
   <div id="session-label">focus</div>
   <div id="timer-row">
     <div id="countdown">00:05</div>
-    <input id="label-input" type="text" autocomplete="off" spellcheck="false" placeholder="▌" />
+    <textarea id="label-input" autocomplete="off" spellcheck="false" placeholder="▌" rows="1"></textarea>
   </div>
 
   <div class="page-wrap">
@@ -392,6 +391,7 @@ function loadLog() {
 }
 function loadLabel() {
   labelInput.value = lsGet('pomo_label') || '';
+  resizeLabelInput();
 }
 function loadAutoStart() {
   const v = lsGet('pomo_autostart');
@@ -764,7 +764,23 @@ function exportICS() {
 
 /* ── Label input ── */
 const labelInput = document.getElementById('label-input');
-labelInput.addEventListener('input', saveLabel);
+
+function resizeLabelInput() {
+  labelInput.style.height = 'auto';
+  labelInput.style.height = labelInput.scrollHeight + 'px';
+}
+
+labelInput.addEventListener('input', () => { saveLabel(); resizeLabelInput(); });
+
+/* Strip newlines on paste so the label stays logically single-line */
+labelInput.addEventListener('paste', e => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain').replace(/[\r\n]+/g, ' ');
+  const s = labelInput.selectionStart, end = labelInput.selectionEnd;
+  labelInput.value = labelInput.value.slice(0, s) + text + labelInput.value.slice(end);
+  labelInput.selectionStart = labelInput.selectionEnd = s + text.length;
+  saveLabel(); resizeLabelInput();
+});
 
 document.addEventListener('keydown', e => {
   resumeAudio();
@@ -796,7 +812,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); openTimerModal(); }
   if (e.key === 'c' || e.key === 'C') { log = []; saveLog(); renderLog(); }
   if (e.key === 'e' || e.key === 'E') exportICS();
-  if (e.key === 'Backspace')          { e.preventDefault(); labelInput.value = ''; }
+  if (e.key === 'Backspace')          { e.preventDefault(); labelInput.value = ''; saveLabel(); resizeLabelInput(); }
   if (e.key === 'a' || e.key === 'A') {
     autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
     saveAutoStart(); renderAutoStartBtn();
@@ -819,7 +835,7 @@ document.getElementById('btn-durations').addEventListener('click', openTimerModa
 document.getElementById('btn-label').addEventListener('click', () => {
   if (document.activeElement === labelInput) labelInput.blur(); else labelInput.focus();
 });
-document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; });
+document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; saveLabel(); resizeLabelInput(); });
 document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; saveLog(); renderLog(); });
 document.getElementById('btn-export').addEventListener('click', exportICS);
 document.getElementById('btn-sound').addEventListener('click', () => {
