@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-  <link rel="icon" href="data:,">
+  <link id="page-favicon" rel="icon" href="" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>00:05</title>
@@ -538,7 +538,7 @@ function renderCountdown() {
     String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
-const _faviconLink = document.querySelector("link[rel='icon']");
+const _faviconLink = document.getElementById('page-favicon');
 function _setFaviconEmoji(emoji) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`;
   _faviconLink.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
