@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>00:05 🍅 — Pomodoro</title>
+
+  <style>
+    :root {
+      --bg:     #1c1b22;
+      --card:   #2b2a32;
+      --card2:  #27262e;
+      --text:   #e5e5e5;
+      --dim:    #7c7884;
+      --accent: #757c58;
+      --radius: 12px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      font-family: Inter, Arial, sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      margin-top: clamp(12px, 6vh, 100px);
+    }
+
+    .page-wrap { width: 80%; max-width: 950px; margin: 0 auto; }
+
+    #session-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--dim);
+      width: 80%;
+      max-width: 950px;
+      margin: 0 0 2px;
+      line-height: 1;
+    }
+
+    #timer-row {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      width: 80%;
+      max-width: 950px;
+      margin: 0 0 28px;
+    }
+
+    #countdown {
+      font-size: 4.5rem;
+      font-weight: 600;
+      letter-spacing: -3px;
+      line-height: 1;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #label-input {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: Inter, Arial, sans-serif;
+      font-size: 4.5rem;
+      font-weight: 600;
+      letter-spacing: -3px;
+      color: var(--dim);
+      padding: 0;
+      line-height: 1;
+      caret-color: var(--dim);
+    }
+
+    #label-input::placeholder { color: var(--card2); }
+
+    #tomato-row {
+      width: 100%;
+      margin: 0 0 28px;
+      font-size: 1.4rem;
+      line-height: 1.6;
+      min-height: 2.25rem; /* matches one line of tomatoes so footer doesn't jump */
+    }
+
+    .tomato { cursor: default; padding: 2px; }
+
+    .instructions {
+      color: var(--dim);
+      font-size: 0.72rem;
+      line-height: 1.9;
+    }
+
+    kbd {
+      background: #18171e;
+      color: #b6b3bc;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-family: Inter, monospace;
+    }
+
+    .reset-btn {
+      background: none;
+      border: none;
+      color: var(--dim);
+      font-family: Inter, sans-serif;
+      font-size: 0.72rem;
+      cursor: pointer;
+      padding: 0;
+    }
+    .reset-btn:hover { color: var(--text); }
+
+    /* ── Timer modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-overlay.visible { display: flex; }
+
+    .modal {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      min-width: 300px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .modal-title {
+      margin: 0 0 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .modal-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .modal-field { flex: 1; }
+
+    .modal-field label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 6px;
+    }
+
+    .modal-field input {
+      width: 100%;
+      background: var(--card2);
+      border: 1px solid #44435a;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      font-family: Inter, sans-serif;
+      color: var(--text);
+      outline: none;
+      box-sizing: border-box;
+    }
+    .modal-field input:focus { border-color: var(--accent); }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .modal-actions button {
+      background: var(--card2);
+      border: 1px solid #44435a;
+      border-radius: 8px;
+      padding: 9px 20px;
+      font-size: 0.88rem;
+      font-family: Inter, sans-serif;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .modal-actions button:hover { border-color: var(--accent); }
+
+    .modal-save-btn {
+      background: #a8b86a;
+      border-color: #a8b86a;
+      color: #1c1b22;
+      font-weight: 600;
+    }
+    .modal-save-btn:hover { background: #bccf7a; border-color: #bccf7a; }
+  </style>
+</head>
+
+<body>
+
+  <div id="session-label">focus</div>
+  <div id="timer-row">
+    <div id="countdown">00:05</div>
+    <input id="label-input" type="text" autocomplete="off" spellcheck="false" placeholder="" />
+  </div>
+
+  <div class="page-wrap">
+    <div id="tomato-row"></div>
+    <div class="instructions">
+      <button class="reset-btn" id="btn-playpause"><kbd>Space</kbd> start/pause</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-skip"><kbd>s</kbd> skip</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-reset"><kbd>r</kbd> reset</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-timer"><kbd>t</kbd> set timer</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-label"><kbd>↵</kbd> edit label</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-clearlabel"><kbd>del</kbd> clear label</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-clearlog"><kbd>c</kbd> clear log</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="autostart-btn">auto-start: off</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="timer-modal">
+    <div class="modal">
+      <p class="modal-title">Set durations</p>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="focus-input">Focus</label>
+          <input id="focus-input" type="text" placeholder="25:00" />
+        </div>
+        <div class="modal-field">
+          <label for="break-input">Break</label>
+          <input id="break-input" type="text" placeholder="05:00" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="modal-cancel">Cancel</button>
+        <button class="modal-save-btn" id="modal-save">Set</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+
+/* Testing intervals — change to 25 * 60 / 5 * 60 for production */
+let focusSecs = 5;
+let breakSecs = 3;
+
+/* ── State ── */
+let isFocus     = true;
+let secondsLeft = focusSecs;
+let isRunning   = false;
+let timerId     = null;
+let autoStartMode = 'off'; // 'off' | 'breaks' | 'on'
+let log         = [];
+
+/* ── localStorage ── */
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+
+/* Use pomo_log2 to avoid loading stale data from previous versions */
+function saveLog()       { lsSet('pomo_log2',      JSON.stringify(log)); }
+function saveAutoStart() { lsSet('pomo_autostart', autoStartMode); }
+function saveDurations() { lsSet('pomo_focus_secs', String(focusSecs)); lsSet('pomo_break_secs', String(breakSecs)); }
+
+function loadLog() {
+  try { log = JSON.parse(lsGet('pomo_log2')) || []; } catch { log = []; }
+}
+function loadAutoStart() {
+  const v = lsGet('pomo_autostart');
+  autoStartMode = (v === 'on' || v === 'breaks') ? v : 'off';
+}
+function loadDurations() {
+  const f = parseInt(lsGet('pomo_focus_secs'), 10);
+  const b = parseInt(lsGet('pomo_break_secs'), 10);
+  if (!isNaN(f) && f > 0) focusSecs = f;
+  if (!isNaN(b) && b > 0) breakSecs = b;
+}
+
+/* ── Timer — setTimeout-based for reliability ── */
+function start() {
+  if (isRunning) return;
+  isRunning = true;
+  timerId   = setTimeout(tick, 1000);
+}
+
+function pause() {
+  if (!isRunning) return;
+  isRunning = false;
+  clearTimeout(timerId);
+  timerId = null;
+}
+
+function tick() {
+  if (!isRunning) return;   /* safety guard */
+  secondsLeft--;
+  renderCountdown();
+  updateTitle();
+  if (secondsLeft <= 0) {
+    onSessionEnd();
+  } else {
+    timerId = setTimeout(tick, 1000);
+  }
+}
+
+function onSessionEnd() {
+  isRunning = false;
+  timerId   = null;
+
+  if (isFocus) {
+    const label = labelInput.value.trim() || null;
+    log.push({ label });
+    saveLog();
+    renderLog();
+  }
+
+  isFocus     = !isFocus;
+  secondsLeft = isFocus ? focusSecs : breakSecs;
+
+  renderSessionLabel();
+  renderCountdown();
+  updateTitle();
+
+  /* auto-start: 'on' always starts; 'breaks' only starts when entering a break */
+  const entering = isFocus ? 'focus' : 'break';
+  if (autoStartMode === 'on' || (autoStartMode === 'breaks' && entering === 'break')) {
+    setTimeout(start, 100);
+  }
+}
+
+function reset() {
+  pause();
+  secondsLeft = isFocus ? focusSecs : breakSecs;
+  renderCountdown();
+  updateTitle();
+}
+
+function skip() {
+  const wasRunning = isRunning;
+  pause();
+  isFocus     = !isFocus;
+  secondsLeft = isFocus ? focusSecs : breakSecs;
+  renderSessionLabel();
+  renderCountdown();
+  updateTitle();
+  const entering = isFocus ? 'focus' : 'break';
+  if (wasRunning || autoStartMode === 'on' || (autoStartMode === 'breaks' && entering === 'break')) {
+    start();
+  }
+}
+
+/* ── Render ── */
+function renderSessionLabel() {
+  document.getElementById('session-label').textContent = isFocus ? 'focus' : 'break';
+}
+
+function renderCountdown() {
+  const m = Math.floor(secondsLeft / 60);
+  const s = secondsLeft % 60;
+  document.getElementById('countdown').textContent =
+    String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function updateTitle() {
+  const m = Math.floor(secondsLeft / 60);
+  const s = secondsLeft % 60;
+  const t = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  document.title = t + (isFocus ? ' 🍅' : ' ☕') + ' — Pomodoro';
+}
+
+function renderLog() {
+  const row = document.getElementById('tomato-row');
+  row.innerHTML = '';
+  log.forEach(entry => {
+    const span = document.createElement('span');
+    span.className   = 'tomato';
+    span.textContent = '🍅';
+    if (entry.label) span.title = entry.label;
+    row.appendChild(span);
+  });
+}
+
+function renderAutoStartBtn() {
+  const states = { off: 'off', breaks: 'breaks', on: 'on' };
+  document.getElementById('autostart-btn').innerHTML = '<kbd>a</kbd> auto-start: ' + states[autoStartMode];
+}
+
+/* ── Auto-start toggle (cycles: off → breaks → on → off) ── */
+document.getElementById('autostart-btn').addEventListener('click', () => {
+  autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
+  saveAutoStart();
+  renderAutoStartBtn();
+});
+
+/* ── Timer modal ── */
+let modalOpen       = false;
+let modalWasRunning = false;
+
+function secsToMmSs(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function parseMmSs(str) {
+  const parts = str.trim().split(':');
+  if (parts.length === 2) {
+    const m = parseInt(parts[0], 10);
+    const s = parseInt(parts[1], 10);
+    if (!isNaN(m) && !isNaN(s) && s < 60 && (m > 0 || s > 0)) return m * 60 + s;
+  } else if (parts.length === 1) {
+    const m = parseInt(parts[0], 10);
+    if (!isNaN(m) && m > 0) return m * 60;
+  }
+  return null;
+}
+
+function openTimerModal() {
+  modalWasRunning = isRunning;
+  if (isRunning) pause();
+  modalOpen = true;
+  const fi = document.getElementById('focus-input');
+  const bi = document.getElementById('break-input');
+  fi.value = secsToMmSs(focusSecs);
+  bi.value = secsToMmSs(breakSecs);
+  document.getElementById('timer-modal').classList.add('visible');
+  /* defer focus so the triggering keystroke isn't typed into the input */
+  setTimeout(() => { fi.focus(); fi.select(); }, 0);
+}
+
+function closeTimerModal() {
+  modalOpen = false;
+  document.getElementById('timer-modal').classList.remove('visible');
+  if (modalWasRunning) { modalWasRunning = false; start(); }
+}
+
+function saveTimerModal() {
+  const f = parseMmSs(document.getElementById('focus-input').value);
+  const b = parseMmSs(document.getElementById('break-input').value);
+  if (f) focusSecs = f;
+  if (b) breakSecs = b;
+  saveDurations();
+  /* reset current session to new duration, don't resume */
+  secondsLeft = isFocus ? focusSecs : breakSecs;
+  renderCountdown();
+  updateTitle();
+  modalWasRunning = false;
+  modalOpen = false;
+  document.getElementById('timer-modal').classList.remove('visible');
+}
+
+document.getElementById('modal-save').addEventListener('click', saveTimerModal);
+document.getElementById('modal-cancel').addEventListener('click', closeTimerModal);
+document.getElementById('timer-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('timer-modal')) closeTimerModal();
+});
+
+/* Submit modal on Enter from either input */
+['focus-input', 'break-input'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); saveTimerModal(); }
+  });
+});
+
+/* ── Keyboard shortcuts ── */
+const labelInput = document.getElementById('label-input');
+
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  if (e.key === 'Escape') {
+    if (modalOpen) { closeTimerModal(); return; }
+    if (document.activeElement === labelInput) { labelInput.blur(); return; }
+    return;
+  }
+
+  if (modalOpen) return;
+
+  const inLabel = document.activeElement === labelInput;
+
+  /* Enter: toggle label focus */
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (inLabel) labelInput.blur();
+    else         labelInput.focus();
+    return;
+  }
+
+  if (inLabel) return;
+
+  if (e.key === ' ')                  { e.preventDefault(); isRunning ? pause() : start(); }
+  if (e.key === 's' || e.key === 'S') skip();
+  if (e.key === 'r' || e.key === 'R') reset();
+  if (e.key === 't' || e.key === 'T') { e.preventDefault(); openTimerModal(); }
+  if (e.key === 'c' || e.key === 'C') { log = []; saveLog(); renderLog(); }
+  if (e.key === 'Backspace')          { e.preventDefault(); labelInput.value = ''; }
+  if (e.key === 'a' || e.key === 'A') {
+    autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
+    saveAutoStart(); renderAutoStartBtn();
+  }
+});
+
+/* ── Button click listeners ── */
+document.getElementById('btn-playpause').addEventListener('click', () => { isRunning ? pause() : start(); });
+document.getElementById('btn-skip').addEventListener('click', skip);
+document.getElementById('btn-reset').addEventListener('click', reset);
+document.getElementById('btn-timer').addEventListener('click', openTimerModal);
+document.getElementById('btn-label').addEventListener('click', () => {
+  if (document.activeElement === labelInput) labelInput.blur(); else labelInput.focus();
+});
+document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; });
+document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; saveLog(); renderLog(); });
+
+/* ── Init ── */
+loadDurations();
+secondsLeft = focusSecs;
+loadLog();
+loadAutoStart();
+renderLog();
+renderAutoStartBtn();
+renderCountdown();
+updateTitle();
+
+</script>
+</body>
+</html>
