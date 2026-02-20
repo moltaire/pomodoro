@@ -88,6 +88,7 @@
       line-height: 1.6;
       min-height: 2.25rem;
     }
+    #tomato-row.detail-open { margin-bottom: 6px; }
 
     .tomato { cursor: pointer; padding: 2px; border-radius: 4px; }
     .tomato.active { background: var(--card); }
@@ -97,7 +98,7 @@
       background: var(--card);
       border-radius: var(--radius);
       padding: 10px 14px;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
       font-size: 0.78rem;
       color: var(--dim);
       line-height: 1.7;
@@ -299,6 +300,11 @@ function getAudioCtx() {
   return audioCtx;
 }
 
+/* iOS Safari keeps AudioContext suspended until a user gesture explicitly resumes it */
+function resumeAudio() {
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+
 /* Metronome tick: short noise burst with power-law decay (~20 ms) */
 function playTick() {
   const ctx  = getAudioCtx();
@@ -349,6 +355,7 @@ function lsGet(k) { try { return localStorage.getItem(k); } catch { return null;
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
 
 function saveLog()       { lsSet('pomo_log2',           JSON.stringify(log)); }
+function saveLabel()     { lsSet('pomo_label',           labelInput.value); }
 function saveAutoStart() { lsSet('pomo_autostart',       autoStartMode); }
 function saveSound()     { lsSet('pomo_sound',           soundMode); }
 function saveDurations() {
@@ -359,6 +366,9 @@ function saveDurations() {
 
 function loadLog() {
   try { log = JSON.parse(lsGet('pomo_log2')) || []; } catch { log = []; }
+}
+function loadLabel() {
+  labelInput.value = lsGet('pomo_label') || '';
 }
 function loadAutoStart() {
   const v = lsGet('pomo_autostart');
@@ -521,9 +531,18 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function updateArrow(i) {
+  const tomato = document.querySelectorAll('.tomato')[i];
+  const row    = document.getElementById('tomato-row');
+  if (!tomato || !row) return;
+  const x = tomato.offsetLeft + tomato.offsetWidth / 2 - row.offsetLeft;
+  document.getElementById('pomo-detail').style.setProperty('--arrow-x', x + 'px');
+}
+
 function closePomoDetail() {
   detailIndex = null;
   document.querySelectorAll('.tomato.active').forEach(t => t.classList.remove('active'));
+  document.getElementById('tomato-row').classList.remove('detail-open');
   const d = document.getElementById('pomo-detail');
   d.classList.remove('visible');
   d.innerHTML = '';
@@ -537,9 +556,9 @@ function showPomoDetail(i) {
   detailIndex = i;
   const entry = log[i];
   document.querySelectorAll('.tomato')[i].classList.add('active');
+  document.getElementById('tomato-row').classList.add('detail-open');
 
   const emoji    = entry.skipped ? '🍑' : '🍅';
-  const label    = entry.label   || (entry.skipped ? 'no label' : 'no label');
   const status   = entry.skipped ? 'skipped' : 'completed';
   const duration = fmtDur(entry.durationSecs ?? 0);
   const timeStr  = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
@@ -549,21 +568,33 @@ function showPomoDetail(i) {
     '<span class="detail-label">' + emoji + (entry.label ? ' ' + entry.label : '') + '</span><br>' +
     status + ' &nbsp;·&nbsp; ' + duration + ' &nbsp;·&nbsp; ' + timeStr;
   d.classList.add('visible');
+  updateArrow(i);
 }
 
-document.addEventListener('click', () => closePomoDetail());
+document.addEventListener('click', () => { resumeAudio(); closePomoDetail(); });
 
 function renderLog() {
-  closePomoDetail();
+  /* only close if the selected entry no longer exists (e.g. log cleared) */
+  if (detailIndex !== null && detailIndex >= log.length) closePomoDetail();
+
   const row = document.getElementById('tomato-row');
   row.innerHTML = '';
   log.forEach((entry, i) => {
     const span = document.createElement('span');
     span.className   = 'tomato';
+    if (i === detailIndex) span.classList.add('active');
     span.textContent = entry.skipped ? '🍑' : '🍅';
+    /* hover title */
+    const parts = [];
+    if (entry.label)   parts.push(entry.label);
+    if (entry.skipped) parts.push('skipped');
+    if (entry.endedAt) parts.push(fmtTime(entry.endedAt));
+    if (parts.length)  span.title = parts.join(' · ');
     span.addEventListener('click', e => { e.stopPropagation(); showPomoDetail(i); });
     row.appendChild(span);
   });
+  /* reposition arrow if panel is still open */
+  if (detailIndex !== null && detailIndex < log.length) updateArrow(detailIndex);
 }
 
 function renderAutoStartBtn() {
@@ -708,10 +739,12 @@ function exportICS() {
   URL.revokeObjectURL(a.href);
 }
 
-/* ── Keyboard shortcuts ── */
+/* ── Label input ── */
 const labelInput = document.getElementById('label-input');
+labelInput.addEventListener('input', saveLabel);
 
 document.addEventListener('keydown', e => {
+  resumeAudio();
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   if (e.key === 'Escape') {
@@ -776,6 +809,7 @@ document.getElementById('btn-fullscreen').addEventListener('click', toggleFullsc
 loadDurations();
 secondsLeft = focusSecs;
 loadLog();
+loadLabel();
 loadAutoStart();
 loadSound();
 renderLog();
