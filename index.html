@@ -237,7 +237,8 @@
       <button class="reset-btn" id="btn-clearlog"><kbd>c</kbd> clear log</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-durations"><kbd>d</kbd> durations</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="autostart-btn">auto-start: breaks</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button>
+      <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button><br>
+      <button class="reset-btn" id="btn-fullscreen"><kbd>f</kbd> fullscreen</button>
     </div>
   </div>
 
@@ -605,6 +606,17 @@ document.getElementById('timer-modal').addEventListener('click', e => {
   });
 });
 
+/* ── Fullscreen ── */
+function toggleFullscreen() {
+  const el  = document.documentElement;
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (!isFs) {
+    (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  }
+}
+
 /* ── Export to .ics ── */
 function toICSDate(date) {
   /* "2026-02-20T10:00:00.000Z" → "20260220T100000Z" */
@@ -683,6 +695,7 @@ document.addEventListener('keydown', e => {
     soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
     saveSound(); renderSoundBtn();
   }
+  if (e.key === 'f' || e.key === 'F') toggleFullscreen();
 });
 
 /* ── Countdown click ── */
@@ -703,6 +716,7 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
   saveSound(); renderSoundBtn();
 });
+document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 
 /* ── Init ── */
 loadDurations();
