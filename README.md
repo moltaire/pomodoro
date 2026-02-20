@@ -24,5 +24,6 @@ Browser-based Pomodoro timer for my personal use. Vibe coded with [Claude](https
 | `c` | clear log |
 | `d` | set durations |
 | `a` | cycle auto-start (off → breaks → on) |
+| `m` | cycle sound (on → finish → off) |
 
 Press `e` to download a `.ics` calendar file of your completed focus sessions.

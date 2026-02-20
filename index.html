@@ -236,7 +236,8 @@
       <button class="reset-btn" id="btn-export"><kbd>e</kbd> export</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-clearlog"><kbd>c</kbd> clear log</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-durations"><kbd>d</kbd> durations</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="autostart-btn">auto-start: breaks</button>
+      <button class="reset-btn" id="autostart-btn">auto-start: breaks</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button>
     </div>
   </div>
 
@@ -258,6 +259,7 @@
         </div>
       </div>
       <div class="modal-actions">
+        <button id="modal-reset">Reset</button>
         <button id="modal-cancel">Cancel</button>
         <button class="modal-save-btn" id="modal-save">Set</button>
       </div>
@@ -271,6 +273,49 @@
 let focusSecs     = 25 * 60;
 let breakSecs     = 5  * 60;
 let longBreakSecs = 20 * 60; // null = disabled; number = seconds for every 4th break
+
+/* ── Sound ── */
+let soundMode = 'on';  // 'on' | 'finish' | 'off'
+let audioCtx  = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+/* Metronome tick: short noise burst with power-law decay (~20 ms) */
+function playTick() {
+  const ctx  = getAudioCtx();
+  const len  = Math.floor(ctx.sampleRate * 0.02);
+  const buf  = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++)
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 6);
+  const src  = ctx.createBufferSource();
+  const gain = ctx.createGain();
+  gain.gain.value = 0.35;
+  src.buffer = buf;
+  src.connect(gain);
+  gain.connect(ctx.destination);
+  src.start();
+}
+
+/* Session-end clave: two quick sine taps at 1400 / 1600 Hz */
+function playDone() {
+  const ctx = getAudioCtx();
+  [0, 0.08].forEach((offset, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1400 + i * 200;
+    const t = ctx.currentTime + offset;
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    osc.start(t);
+    osc.stop(t + 0.07);
+  });
+}
 
 /* ── State ── */
 let isFocus          = true;
@@ -289,6 +334,7 @@ function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
 
 function saveLog()       { lsSet('pomo_log2',           JSON.stringify(log)); }
 function saveAutoStart() { lsSet('pomo_autostart',       autoStartMode); }
+function saveSound()     { lsSet('pomo_sound',           soundMode); }
 function saveDurations() {
   lsSet('pomo_focus_secs',     String(focusSecs));
   lsSet('pomo_break_secs',     String(breakSecs));
@@ -301,6 +347,10 @@ function loadLog() {
 function loadAutoStart() {
   const v = lsGet('pomo_autostart');
   autoStartMode = (v === 'on' || v === 'off' || v === 'breaks') ? v : 'breaks';
+}
+function loadSound() {
+  const v = lsGet('pomo_sound');
+  soundMode = (v === 'finish' || v === 'off') ? v : 'on';
 }
 function loadDurations() {
   const f  = parseInt(lsGet('pomo_focus_secs'),      10);
@@ -332,6 +382,7 @@ function pause() {
 function tick() {
   if (!isRunning) return;
   secondsLeft--;
+  if (soundMode === 'on' && isFocus) playTick();
   renderCountdown();
   updateTitle();
   if (secondsLeft <= 0) {
@@ -344,6 +395,7 @@ function tick() {
 function onSessionEnd() {
   isRunning = false;
   timerId   = null;
+  if (soundMode === 'on' || soundMode === 'finish') playDone();
 
   if (isFocus) {
     const endedAt = new Date().toISOString();
@@ -464,6 +516,10 @@ function renderAutoStartBtn() {
   document.getElementById('autostart-btn').innerHTML = '<kbd>a</kbd> auto-start: ' + states[autoStartMode];
 }
 
+function renderSoundBtn() {
+  document.getElementById('btn-sound').innerHTML = '<kbd>m</kbd> sound: ' + soundMode;
+}
+
 /* ── Auto-start toggle (cycles: off → breaks → on → off) ── */
 document.getElementById('autostart-btn').addEventListener('click', () => {
   autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
@@ -533,6 +589,11 @@ function saveTimerModal() {
 
 document.getElementById('modal-save').addEventListener('click', saveTimerModal);
 document.getElementById('modal-cancel').addEventListener('click', closeTimerModal);
+document.getElementById('modal-reset').addEventListener('click', () => {
+  document.getElementById('focus-input').value     = '25:00';
+  document.getElementById('break-input').value     = '05:00';
+  document.getElementById('longbreak-input').value = '20:00';
+});
 document.getElementById('timer-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('timer-modal')) closeTimerModal();
 });
@@ -618,6 +679,10 @@ document.addEventListener('keydown', e => {
     autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
     saveAutoStart(); renderAutoStartBtn();
   }
+  if (e.key === 'm' || e.key === 'M') {
+    soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
+    saveSound(); renderSoundBtn();
+  }
 });
 
 /* ── Countdown click ── */
@@ -634,14 +699,20 @@ document.getElementById('btn-label').addEventListener('click', () => {
 document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; });
 document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; saveLog(); renderLog(); });
 document.getElementById('btn-export').addEventListener('click', exportICS);
+document.getElementById('btn-sound').addEventListener('click', () => {
+  soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
+  saveSound(); renderSoundBtn();
+});
 
 /* ── Init ── */
 loadDurations();
 secondsLeft = focusSecs;
 loadLog();
 loadAutoStart();
+loadSound();
 renderLog();
 renderAutoStartBtn();
+renderSoundBtn();
 renderCountdown();
 updateTitle();
 
