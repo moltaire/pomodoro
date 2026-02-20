@@ -538,11 +538,26 @@ function renderCountdown() {
     String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
+const _faviconLink = document.querySelector("link[rel='icon']");
+const _faviconCanvas = document.createElement('canvas');
+_faviconCanvas.width = _faviconCanvas.height = 32;
+function _setFaviconEmoji(emoji) {
+  const ctx = _faviconCanvas.getContext('2d');
+  ctx.clearRect(0, 0, 32, 32);
+  ctx.font = '28px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 16, 16);
+  _faviconLink.href = _faviconCanvas.toDataURL();
+}
+
 function updateTitle() {
   const m = Math.floor(secondsLeft / 60);
   const s = secondsLeft % 60;
   const t = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-  document.title = (isFocus ? '🍅 ' : '☕ ') + t;
+  const emoji = isFocus ? '🍅' : '☕';
+  document.title = emoji + ' ' + t;
+  _setFaviconEmoji(emoji);
 }
 
 /* ── Pomo detail panel ── */
