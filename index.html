@@ -538,11 +538,17 @@ function renderCountdown() {
     String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
-const _faviconLink = document.getElementById('page-favicon');
 function _setFaviconEmoji(emoji) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`;
-  _faviconLink.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  const href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  const old = document.getElementById('page-favicon');
+  const link = document.createElement('link');
+  link.id = 'page-favicon';
+  link.rel = 'icon';
+  link.href = href;
+  document.head.replaceChild(link, old);
 }
+_setFaviconEmoji('🍅');
 
 function updateTitle() {
   const m = Math.floor(secondsLeft / 60);
