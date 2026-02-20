@@ -300,9 +300,12 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-/* iOS Safari keeps AudioContext suspended until a user gesture explicitly resumes it */
+/* iOS Safari keeps AudioContext suspended until a user gesture explicitly resumes it.
+   Create the context here (not lazily on first sound) so that the very first tap/key
+   both creates AND unlocks it while we're still inside the user-gesture callback. */
 function resumeAudio() {
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
 /* Metronome tick: short noise burst with power-law decay (~20 ms) */
