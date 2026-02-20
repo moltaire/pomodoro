@@ -89,7 +89,21 @@
       min-height: 2.25rem;
     }
 
-    .tomato { cursor: default; padding: 2px; }
+    .tomato { cursor: pointer; padding: 2px; border-radius: 4px; }
+    .tomato.active { background: var(--card); }
+
+    #pomo-detail {
+      display: none;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      font-size: 0.78rem;
+      color: var(--dim);
+      line-height: 1.7;
+    }
+    #pomo-detail.visible { display: block; }
+    #pomo-detail .detail-label { color: var(--text); font-weight: 500; }
 
     .instructions {
       color: var(--dim);
@@ -194,13 +208,13 @@
     }
     .modal-actions button:hover { border-color: var(--accent); }
 
-    .modal-save-btn {
+    .modal-actions .modal-save-btn {
       background: #a8b86a;
       border-color: #a8b86a;
       color: #1c1b22;
       font-weight: 600;
     }
-    .modal-save-btn:hover { background: #bccf7a; border-color: #bccf7a; }
+    .modal-actions .modal-save-btn:hover { background: #bccf7a; border-color: #bccf7a; color: #0e0d14; }
 
     /* ── GitHub link ── */
     .gh-link {
@@ -227,6 +241,7 @@
 
   <div class="page-wrap">
     <div id="tomato-row"></div>
+    <div id="pomo-detail"></div>
     <div class="instructions">
       <button class="reset-btn" id="btn-playpause"><kbd>Space</kbd> start/pause</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-skip"><kbd>s</kbd> skip</button> &nbsp;·&nbsp;
@@ -494,20 +509,59 @@ function updateTitle() {
   document.title = (isFocus ? '🍅 ' : '☕ ') + t;
 }
 
+/* ── Pomo detail panel ── */
+let detailIndex = null;
+
+function fmtDur(secs) {
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function closePomoDetail() {
+  detailIndex = null;
+  document.querySelectorAll('.tomato.active').forEach(t => t.classList.remove('active'));
+  const d = document.getElementById('pomo-detail');
+  d.classList.remove('visible');
+  d.innerHTML = '';
+}
+
+function showPomoDetail(i) {
+  const prev = detailIndex;
+  closePomoDetail();
+  if (prev === i) return; /* tap same tomato → just close */
+
+  detailIndex = i;
+  const entry = log[i];
+  document.querySelectorAll('.tomato')[i].classList.add('active');
+
+  const emoji    = entry.skipped ? '🍑' : '🍅';
+  const label    = entry.label   || (entry.skipped ? 'no label' : 'no label');
+  const status   = entry.skipped ? 'skipped' : 'completed';
+  const duration = fmtDur(entry.durationSecs ?? 0);
+  const timeStr  = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
+
+  const d = document.getElementById('pomo-detail');
+  d.innerHTML =
+    '<span class="detail-label">' + emoji + (entry.label ? ' ' + entry.label : '') + '</span><br>' +
+    status + ' &nbsp;·&nbsp; ' + duration + ' &nbsp;·&nbsp; ' + timeStr;
+  d.classList.add('visible');
+}
+
+document.addEventListener('click', () => closePomoDetail());
+
 function renderLog() {
+  closePomoDetail();
   const row = document.getElementById('tomato-row');
   row.innerHTML = '';
-  log.forEach(entry => {
+  log.forEach((entry, i) => {
     const span = document.createElement('span');
     span.className   = 'tomato';
     span.textContent = entry.skipped ? '🍑' : '🍅';
-    const parts = [];
-    if (entry.label) parts.push(entry.label);
-    if (entry.skipped) parts.push('skipped');
-    if (entry.endedAt) {
-      parts.push(new Date(entry.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    }
-    if (parts.length) span.title = parts.join(' · ');
+    span.addEventListener('click', e => { e.stopPropagation(); showPomoDetail(i); });
     row.appendChild(span);
   });
 }
