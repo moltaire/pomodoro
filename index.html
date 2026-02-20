@@ -217,6 +217,12 @@
     }
     .modal-actions .modal-save-btn:hover { background: #bccf7a; border-color: #bccf7a; color: #0e0d14; }
 
+    /* ── Narrow screens: stack label below timer ── */
+    @media (max-width: 540px) {
+      #timer-row { flex-direction: column; gap: 0; }
+      #label-input { font-size: 2rem; letter-spacing: -1px; }
+    }
+
     /* ── GitHub link ── */
     .gh-link {
       position: fixed;
@@ -302,10 +308,18 @@ function getAudioCtx() {
 
 /* iOS Safari keeps AudioContext suspended until a user gesture explicitly resumes it.
    Create the context here (not lazily on first sound) so that the very first tap/key
-   both creates AND unlocks it while we're still inside the user-gesture callback. */
+   both creates AND unlocks it while we're still inside the user-gesture callback.
+   Also play a silent <Audio> element once to promote the iOS audio session from
+   "ambient" (respects mute switch) to "playback" (ignores mute switch). */
+let _iosAudioUnlocked = false;
 function resumeAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (!_iosAudioUnlocked) {
+    _iosAudioUnlocked = true;
+    const a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+    a.play().catch(() => {});
+  }
 }
 
 /* Metronome tick: short noise burst with power-law decay (~20 ms) */
