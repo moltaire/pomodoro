@@ -79,11 +79,12 @@
       caret-color: var(--dim);
       resize: none;
       overflow: hidden;
+      word-break: break-word;
       -webkit-appearance: none;
       appearance: none;
     }
 
-    #label-input::placeholder { color: rgba(255,255,255,0.05); }
+    #label-input::placeholder { color: rgba(255,255,255,0.01); }
     #label-input:focus::placeholder { opacity: 0; }
 
     #tomato-row {
@@ -225,7 +226,7 @@
     /* ── Narrow screens: stack label below timer ── */
     @media (max-width: 540px) {
       #timer-row { flex-direction: column; gap: 0; align-items: stretch; }
-      #label-input { font-size: 2rem; letter-spacing: -1px; }
+      #label-input { font-size: 2rem; letter-spacing: -1px; width: 100%; box-sizing: border-box; }
     }
 
     /* ── GitHub link ── */
