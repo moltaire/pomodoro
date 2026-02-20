@@ -1,0 +1,48 @@
+name: Update Screenshot
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install playwright
+          npx playwright install chromium
+
+      - name: Take Screenshot
+        run: |
+          node <<EOF
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage({ viewport: { width: 800, height: 300 }});
+            await page.goto('file://' + process.cwd() + '/index.html');
+            await page.waitForTimeout(1000);
+            await page.screenshot({ path: 'screenshot.png', fullPage: true });
+            await browser.close();
+          })();
+          EOF
+
+      - name: Commit Screenshot
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add screenshot.png
+          git commit -m "auto: update screenshot" || echo "No changes"
+          git push
