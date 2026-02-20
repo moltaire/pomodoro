@@ -83,7 +83,7 @@
       appearance: none;
     }
 
-    #label-input::placeholder { color: var(--card); }
+    #label-input::placeholder { color: rgba(255,255,255,0.05); }
     #label-input:focus::placeholder { opacity: 0; }
 
     #tomato-row {
@@ -224,7 +224,7 @@
 
     /* ── Narrow screens: stack label below timer ── */
     @media (max-width: 540px) {
-      #timer-row { flex-direction: column; gap: 0; }
+      #timer-row { flex-direction: column; gap: 0; align-items: stretch; }
       #label-input { font-size: 2rem; letter-spacing: -1px; }
     }
 
