@@ -9,7 +9,8 @@ Browser-based Pomodoro timer for my personal use. Vibe coded with [Claude](https
 ## what it does
 
 - Single-file Pomodoro timer: 25-min focus / 5-min break, with an optional 20-min long break every 4th session
-- Logs completed sessions (🍅) and skipped ones (🍑); hover over any entry for labels and timestamp
+- Logs completed sessions (🍅) and skipped ones (🍑); hover over or click any entry for details
+- Export of focus sessions to calendar events
 
 ## how to use it
 
@@ -25,5 +26,6 @@ Browser-based Pomodoro timer for my personal use. Vibe coded with [Claude](https
 | `d` | set durations |
 | `a` | cycle auto-start (off → breaks → on) |
 | `m` | cycle sound (on → finish → off) |
+| `f` | toggle fullscreen |
 
 Press `e` to download a `.ics` calendar file of your completed focus sessions.
