@@ -4,7 +4,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>00:05 🍅 — Pomodoro</title>
+  <title>🍅 00:05</title>
 
   <style>
     :root {
@@ -59,6 +59,8 @@
       line-height: 1;
       flex-shrink: 0;
       font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      user-select: none;
     }
 
     #label-input {
@@ -84,7 +86,7 @@
       margin: 0 0 28px;
       font-size: 1.4rem;
       line-height: 1.6;
-      min-height: 2.25rem; /* matches one line of tomatoes so footer doesn't jump */
+      min-height: 2.25rem;
     }
 
     .tomato { cursor: default; padding: 2px; }
@@ -199,6 +201,19 @@
       font-weight: 600;
     }
     .modal-save-btn:hover { background: #bccf7a; border-color: #bccf7a; }
+
+    /* ── GitHub link ── */
+    .gh-link {
+      position: fixed;
+      bottom: 14px;
+      right: 18px;
+      font-size: 0.68rem;
+      color: var(--dim);
+      text-decoration: none;
+      opacity: 0.45;
+      transition: opacity 0.15s;
+    }
+    .gh-link:hover { opacity: 1; }
   </style>
 </head>
 
@@ -216,11 +231,12 @@
       <button class="reset-btn" id="btn-playpause"><kbd>Space</kbd> start/pause</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-skip"><kbd>s</kbd> skip</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-reset"><kbd>r</kbd> reset</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-timer"><kbd>t</kbd> set timer</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-label"><kbd>↵</kbd> edit label</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-clearlabel"><kbd>del</kbd> clear label</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-clearlabel"><kbd>del</kbd> clear label</button><br>
+      <button class="reset-btn" id="btn-export"><kbd>e</kbd> export</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-clearlog"><kbd>c</kbd> clear log</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="autostart-btn">auto-start: off</button>
+      <button class="reset-btn" id="btn-durations"><kbd>d</kbd> durations</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="autostart-btn">auto-start: breaks</button>
     </div>
   </div>
 
@@ -236,6 +252,10 @@
           <label for="break-input">Break</label>
           <input id="break-input" type="text" placeholder="05:00" />
         </div>
+        <div class="modal-field">
+          <label for="longbreak-input">Long break</label>
+          <input id="longbreak-input" type="text" placeholder="—" />
+        </div>
       </div>
       <div class="modal-actions">
         <button id="modal-cancel">Cancel</button>
@@ -244,46 +264,60 @@
     </div>
   </div>
 
+  <a class="gh-link" href="https://github.com/moltaire/pomodoro" target="_blank" rel="noopener">github</a>
+
 <script>
 
-/* Testing intervals — change to 25 * 60 / 5 * 60 for production */
-let focusSecs = 5;
-let breakSecs = 3;
+let focusSecs     = 25 * 60;
+let breakSecs     = 5  * 60;
+let longBreakSecs = 20 * 60; // null = disabled; number = seconds for every 4th break
 
 /* ── State ── */
-let isFocus     = true;
-let secondsLeft = focusSecs;
-let isRunning   = false;
-let timerId     = null;
-let autoStartMode = 'off'; // 'off' | 'breaks' | 'on'
-let log         = [];
+let isFocus          = true;
+let isLongBreak      = false;
+let secondsLeft      = focusSecs;
+let isRunning        = false;
+let timerId          = null;
+let sessionStartTime = null; // ISO string, set when a focus session begins
+let autoStartMode    = 'breaks'; // 'off' | 'breaks' | 'on'
+let log              = [];
+// log entry: { label: string|null, startedAt: ISO|null, endedAt: ISO, durationSecs: number }
 
 /* ── localStorage ── */
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
 
-/* Use pomo_log2 to avoid loading stale data from previous versions */
-function saveLog()       { lsSet('pomo_log2',      JSON.stringify(log)); }
-function saveAutoStart() { lsSet('pomo_autostart', autoStartMode); }
-function saveDurations() { lsSet('pomo_focus_secs', String(focusSecs)); lsSet('pomo_break_secs', String(breakSecs)); }
+function saveLog()       { lsSet('pomo_log2',           JSON.stringify(log)); }
+function saveAutoStart() { lsSet('pomo_autostart',       autoStartMode); }
+function saveDurations() {
+  lsSet('pomo_focus_secs',     String(focusSecs));
+  lsSet('pomo_break_secs',     String(breakSecs));
+  lsSet('pomo_long_break_secs', longBreakSecs !== null ? String(longBreakSecs) : '');
+}
 
 function loadLog() {
   try { log = JSON.parse(lsGet('pomo_log2')) || []; } catch { log = []; }
 }
 function loadAutoStart() {
   const v = lsGet('pomo_autostart');
-  autoStartMode = (v === 'on' || v === 'breaks') ? v : 'off';
+  autoStartMode = (v === 'on' || v === 'off' || v === 'breaks') ? v : 'breaks';
 }
 function loadDurations() {
-  const f = parseInt(lsGet('pomo_focus_secs'), 10);
-  const b = parseInt(lsGet('pomo_break_secs'), 10);
-  if (!isNaN(f) && f > 0) focusSecs = f;
-  if (!isNaN(b) && b > 0) breakSecs = b;
+  const f  = parseInt(lsGet('pomo_focus_secs'),      10);
+  const b  = parseInt(lsGet('pomo_break_secs'),      10);
+  const lb = parseInt(lsGet('pomo_long_break_secs'), 10);
+  if (!isNaN(f)  && f  > 0) focusSecs     = f;
+  if (!isNaN(b)  && b  > 0) breakSecs     = b;
+  if (!isNaN(lb) && lb > 0) longBreakSecs = lb;
 }
 
 /* ── Timer — setTimeout-based for reliability ── */
 function start() {
   if (isRunning) return;
+  /* record when this focus session begins (first start, not resume) */
+  if (isFocus && sessionStartTime === null) {
+    sessionStartTime = new Date().toISOString();
+  }
   isRunning = true;
   timerId   = setTimeout(tick, 1000);
 }
@@ -296,7 +330,7 @@ function pause() {
 }
 
 function tick() {
-  if (!isRunning) return;   /* safety guard */
+  if (!isRunning) return;
   secondsLeft--;
   renderCountdown();
   updateTitle();
@@ -312,14 +346,28 @@ function onSessionEnd() {
   timerId   = null;
 
   if (isFocus) {
-    const label = labelInput.value.trim() || null;
-    log.push({ label });
+    const endedAt = new Date().toISOString();
+    log.push({
+      label:       labelInput.value.trim() || null,
+      startedAt:   sessionStartTime,
+      endedAt,
+      durationSecs: focusSecs,
+    });
+    sessionStartTime = null;
     saveLog();
     renderLog();
   }
 
-  isFocus     = !isFocus;
-  secondsLeft = isFocus ? focusSecs : breakSecs;
+  isFocus = !isFocus;
+
+  if (!isFocus) {
+    /* entering a break — every 4th focus completion is a long break */
+    isLongBreak = longBreakSecs !== null && log.length % 4 === 0;
+    secondsLeft = isLongBreak ? longBreakSecs : breakSecs;
+  } else {
+    isLongBreak = false;
+    secondsLeft = focusSecs;
+  }
 
   renderSessionLabel();
   renderCountdown();
@@ -334,7 +382,8 @@ function onSessionEnd() {
 
 function reset() {
   pause();
-  secondsLeft = isFocus ? focusSecs : breakSecs;
+  sessionStartTime = null;
+  secondsLeft = isFocus ? focusSecs : (isLongBreak ? longBreakSecs : breakSecs);
   renderCountdown();
   updateTitle();
 }
@@ -342,7 +391,24 @@ function reset() {
 function skip() {
   const wasRunning = isRunning;
   pause();
+
+  /* log skipped focus session (peach) if it was actually started */
+  if (isFocus && sessionStartTime !== null) {
+    const endedAt = new Date().toISOString();
+    log.push({
+      label:       labelInput.value.trim() || null,
+      startedAt:   sessionStartTime,
+      endedAt,
+      durationSecs: focusSecs - secondsLeft,
+      skipped:     true,
+    });
+    saveLog();
+    renderLog();
+  }
+
+  sessionStartTime = null;
   isFocus     = !isFocus;
+  isLongBreak = false; /* skips don't trigger long break */
   secondsLeft = isFocus ? focusSecs : breakSecs;
   renderSessionLabel();
   renderCountdown();
@@ -355,7 +421,10 @@ function skip() {
 
 /* ── Render ── */
 function renderSessionLabel() {
-  document.getElementById('session-label').textContent = isFocus ? 'focus' : 'break';
+  const el = document.getElementById('session-label');
+  if      (isFocus)      el.textContent = 'focus';
+  else if (isLongBreak)  el.textContent = 'long break';
+  else                   el.textContent = 'break';
 }
 
 function renderCountdown() {
@@ -369,7 +438,7 @@ function updateTitle() {
   const m = Math.floor(secondsLeft / 60);
   const s = secondsLeft % 60;
   const t = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-  document.title = t + (isFocus ? ' 🍅' : ' ☕') + ' — Pomodoro';
+  document.title = (isFocus ? '🍅 ' : '☕ ') + t;
 }
 
 function renderLog() {
@@ -378,8 +447,14 @@ function renderLog() {
   log.forEach(entry => {
     const span = document.createElement('span');
     span.className   = 'tomato';
-    span.textContent = '🍅';
-    if (entry.label) span.title = entry.label;
+    span.textContent = entry.skipped ? '🍑' : '🍅';
+    const parts = [];
+    if (entry.label) parts.push(entry.label);
+    if (entry.skipped) parts.push('skipped');
+    if (entry.endedAt) {
+      parts.push(new Date(entry.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    }
+    if (parts.length) span.title = parts.join(' · ');
     row.appendChild(span);
   });
 }
@@ -407,6 +482,7 @@ function secsToMmSs(secs) {
 }
 
 function parseMmSs(str) {
+  if (!str || !str.trim()) return null;
   const parts = str.trim().split(':');
   if (parts.length === 2) {
     const m = parseInt(parts[0], 10);
@@ -423,13 +499,14 @@ function openTimerModal() {
   modalWasRunning = isRunning;
   if (isRunning) pause();
   modalOpen = true;
-  const fi = document.getElementById('focus-input');
-  const bi = document.getElementById('break-input');
-  fi.value = secsToMmSs(focusSecs);
-  bi.value = secsToMmSs(breakSecs);
+  document.getElementById('focus-input').value     = secsToMmSs(focusSecs);
+  document.getElementById('break-input').value     = secsToMmSs(breakSecs);
+  document.getElementById('longbreak-input').value = longBreakSecs !== null ? secsToMmSs(longBreakSecs) : '';
   document.getElementById('timer-modal').classList.add('visible');
-  /* defer focus so the triggering keystroke isn't typed into the input */
-  setTimeout(() => { fi.focus(); fi.select(); }, 0);
+  setTimeout(() => {
+    const fi = document.getElementById('focus-input');
+    fi.focus(); fi.select();
+  }, 0);
 }
 
 function closeTimerModal() {
@@ -439,13 +516,14 @@ function closeTimerModal() {
 }
 
 function saveTimerModal() {
-  const f = parseMmSs(document.getElementById('focus-input').value);
-  const b = parseMmSs(document.getElementById('break-input').value);
-  if (f) focusSecs = f;
-  if (b) breakSecs = b;
+  const f  = parseMmSs(document.getElementById('focus-input').value);
+  const b  = parseMmSs(document.getElementById('break-input').value);
+  const lb = parseMmSs(document.getElementById('longbreak-input').value);
+  if (f)  focusSecs     = f;
+  if (b)  breakSecs     = b;
+  longBreakSecs = lb || null; /* empty/invalid → disabled */
   saveDurations();
-  /* reset current session to new duration, don't resume */
-  secondsLeft = isFocus ? focusSecs : breakSecs;
+  secondsLeft = isFocus ? focusSecs : (isLongBreak ? longBreakSecs ?? breakSecs : breakSecs);
   renderCountdown();
   updateTitle();
   modalWasRunning = false;
@@ -459,12 +537,49 @@ document.getElementById('timer-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('timer-modal')) closeTimerModal();
 });
 
-/* Submit modal on Enter from either input */
-['focus-input', 'break-input'].forEach(id => {
+/* Submit modal on Enter — stopPropagation prevents the global handler from also firing */
+['focus-input', 'break-input', 'longbreak-input'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); saveTimerModal(); }
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); saveTimerModal(); }
   });
 });
+
+/* ── Export to .ics ── */
+function toICSDate(date) {
+  /* "2026-02-20T10:00:00.000Z" → "20260220T100000Z" */
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+function exportICS() {
+  const entries = log.filter(e => e.startedAt && e.endedAt);
+  if (entries.length === 0) return;
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//moltaire//Pomodoro//EN',
+    'CALSCALE:GREGORIAN',
+  ];
+
+  entries.forEach((entry, i) => {
+    const summary = '🍅' + (entry.label ? ' ' + entry.label : ' Focus session');
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:pomo-' + i + '-' + entry.startedAt + '@pomodoro');
+    lines.push('DTSTART:' + toICSDate(new Date(entry.startedAt)));
+    lines.push('DTEND:'   + toICSDate(new Date(entry.endedAt)));
+    lines.push('SUMMARY:' + summary);
+    lines.push('END:VEVENT');
+  });
+
+  lines.push('END:VCALENDAR');
+
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'pomodoro.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 /* ── Keyboard shortcuts ── */
 const labelInput = document.getElementById('label-input');
@@ -495,8 +610,9 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ')                  { e.preventDefault(); isRunning ? pause() : start(); }
   if (e.key === 's' || e.key === 'S') skip();
   if (e.key === 'r' || e.key === 'R') reset();
-  if (e.key === 't' || e.key === 'T') { e.preventDefault(); openTimerModal(); }
+  if (e.key === 'd' || e.key === 'D') { e.preventDefault(); openTimerModal(); }
   if (e.key === 'c' || e.key === 'C') { log = []; saveLog(); renderLog(); }
+  if (e.key === 'e' || e.key === 'E') exportICS();
   if (e.key === 'Backspace')          { e.preventDefault(); labelInput.value = ''; }
   if (e.key === 'a' || e.key === 'A') {
     autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
@@ -504,16 +620,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
+/* ── Countdown click ── */
+document.getElementById('countdown').addEventListener('click', () => { isRunning ? pause() : start(); });
+
 /* ── Button click listeners ── */
 document.getElementById('btn-playpause').addEventListener('click', () => { isRunning ? pause() : start(); });
 document.getElementById('btn-skip').addEventListener('click', skip);
 document.getElementById('btn-reset').addEventListener('click', reset);
-document.getElementById('btn-timer').addEventListener('click', openTimerModal);
+document.getElementById('btn-durations').addEventListener('click', openTimerModal);
 document.getElementById('btn-label').addEventListener('click', () => {
   if (document.activeElement === labelInput) labelInput.blur(); else labelInput.focus();
 });
 document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; });
 document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; saveLog(); renderLog(); });
+document.getElementById('btn-export').addEventListener('click', exportICS);
 
 /* ── Init ── */
 loadDurations();
