@@ -79,7 +79,13 @@
       caret-color: var(--dim);
     }
 
-    #label-input::placeholder { color: var(--card2); }
+    @keyframes label-cursor {
+      0%, 49% { opacity: 0.2; }
+      50%, 100% { opacity: 0; }
+    }
+    #label-input::placeholder { color: var(--dim); }
+    #label-input:not(:focus)::placeholder { animation: label-cursor 1.2s step-start infinite; }
+    #label-input:focus::placeholder { opacity: 0; }
 
     #tomato-row {
       width: 100%;
@@ -243,7 +249,7 @@
   <div id="session-label">focus</div>
   <div id="timer-row">
     <div id="countdown">00:05</div>
-    <input id="label-input" type="text" autocomplete="off" spellcheck="false" placeholder="" />
+    <input id="label-input" type="text" autocomplete="off" spellcheck="false" placeholder="▌" />
   </div>
 
   <div class="page-wrap">
