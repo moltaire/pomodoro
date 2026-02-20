@@ -735,7 +735,7 @@ function toICSDate(date) {
 
 function exportICS() {
   const entries = log.filter(e => e.startedAt && e.endedAt);
-  if (entries.length === 0) return;
+  if (entries.length === 0) { labelInput.value = 'Work first.'; saveLabel(); resizeLabelInput(); return; }
 
   const lines = [
     'BEGIN:VCALENDAR',
