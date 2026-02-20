@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-  <link id="page-favicon" rel="icon" />
+  <link id="page-favicon" rel="icon" href="" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>00:05</title>
@@ -301,23 +301,11 @@
 
 <script>
 
-/* ── emoji favicon (canvas PNG — works in Safari; SVG does not) ── */
+/* ── emoji favicon ── */
+const _faviconLink = document.getElementById('page-favicon');
 function _setFaviconEmoji(emoji) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  ctx.font = '52px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, 32, 36);
-  const old = document.getElementById('page-favicon');
-  const link = document.createElement('link');
-  link.id = 'page-favicon';
-  link.rel = 'icon';
-  link.type = 'image/png';
-  link.href = canvas.toDataURL('image/png');
-  if (old) document.head.replaceChild(link, old);
-  else document.head.appendChild(link);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`;
+  _faviconLink.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 _setFaviconEmoji('🍅');
 
