@@ -335,7 +335,12 @@
         </div>
         <div class="modal-field">
           <label for="longbreak-input">Long break</label>
-          <input id="longbreak-input" type="text" placeholder="—" />
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="longbreak-input" type="text" placeholder="—" style="flex:1;min-width:0;" />
+            <span style="font-size:0.75rem;color:var(--dim);white-space:nowrap;">every</span>
+            <input id="longbreak-freq-input" type="text" placeholder="4" style="width:44px;" />
+            <span style="font-size:0.75rem;color:var(--dim);">breaks</span>
+          </div>
         </div>
       </div>
       <div class="modal-actions">
@@ -381,7 +386,8 @@ function _setFaviconEmoji(emoji) {
 
 let focusSecs     = 25 * 60;
 let breakSecs     = 5  * 60;
-let longBreakSecs = 20 * 60; // null = disabled; number = seconds for every 4th break
+let longBreakSecs  = 20 * 60; // null = disabled
+let longBreakFreq  = 4;       // every Nth break; 0 = disabled
 
 /* ── Sound ── */
 let soundMode = 'on';  // 'on' | 'finish' | 'off'
@@ -472,9 +478,10 @@ function saveWorkoutTasks()       { lsSet('pomo_workout_tasks',        JSON.stri
 function saveWorkoutMode()        { lsSet('pomo_workout_mode',         workoutMode ? '1' : ''); }
 function saveWorkoutNoLongBreak() { lsSet('pomo_workout_no_longbreak', workoutNoLongBreak ? '1' : ''); }
 function saveDurations() {
-  lsSet('pomo_focus_secs',     String(focusSecs));
-  lsSet('pomo_break_secs',     String(breakSecs));
+  lsSet('pomo_focus_secs',      String(focusSecs));
+  lsSet('pomo_break_secs',      String(breakSecs));
   lsSet('pomo_long_break_secs', longBreakSecs !== null ? String(longBreakSecs) : '');
+  lsSet('pomo_long_break_freq', String(longBreakFreq));
 }
 
 function loadLog() {
@@ -506,12 +513,14 @@ function loadWorkoutNoLongBreak() {
   workoutNoLongBreak = v === null ? true : v === '1'; // default true
 }
 function loadDurations() {
-  const f  = parseInt(lsGet('pomo_focus_secs'),      10);
-  const b  = parseInt(lsGet('pomo_break_secs'),      10);
-  const lb = parseInt(lsGet('pomo_long_break_secs'), 10);
-  if (!isNaN(f)  && f  > 0) focusSecs     = f;
-  if (!isNaN(b)  && b  > 0) breakSecs     = b;
-  if (!isNaN(lb) && lb > 0) longBreakSecs = lb;
+  const f   = parseInt(lsGet('pomo_focus_secs'),      10);
+  const b   = parseInt(lsGet('pomo_break_secs'),      10);
+  const lb  = parseInt(lsGet('pomo_long_break_secs'), 10);
+  const lbf = parseInt(lsGet('pomo_long_break_freq'), 10);
+  if (!isNaN(f)   && f   > 0)  focusSecs     = f;
+  if (!isNaN(b)   && b   > 0)  breakSecs     = b;
+  if (!isNaN(lb)  && lb  > 0)  longBreakSecs = lb;
+  if (!isNaN(lbf) && lbf >= 0) longBreakFreq = lbf;
 }
 
 /* ── Timer — setTimeout-based for reliability ── */
@@ -593,7 +602,9 @@ function onSessionEnd() {
 
   if (!isFocus) {
     /* entering a break — every 4th focus completion is a long break */
-    isLongBreak = longBreakSecs !== null && log.length % 4 === 0
+    const focusCount = log.filter(e => e.type !== 'break').length;
+    isLongBreak = longBreakSecs !== null && longBreakFreq > 0
+      && focusCount % longBreakFreq === 0
       && !(workoutMode && workoutNoLongBreak);
     if (workoutMode) {
       const next = workoutTasks[workoutIndex + 1];
@@ -801,7 +812,7 @@ function renderLogBreaksBtn() {
 
 function renderWorkoutBtn() {
   document.getElementById('btn-workout').innerHTML = workoutMode
-    ? '<kbd>w</kbd> workout: on (' + workoutTasks.length + ')'
+    ? '<kbd>w</kbd> workout: on'
     : '<kbd>w</kbd> workout: off';
 }
 
@@ -873,10 +884,10 @@ function renderWorkoutSummary(draftTasks) {
   if (n === 0) { el.textContent = 'No exercises'; return; }
   const noLB = document.getElementById('workout-no-longbreak-check').checked;
   let totalSecs = n * focusSecs;
-  if (noLB || longBreakSecs === null) {
+  if (noLB || longBreakSecs === null || longBreakFreq === 0) {
     totalSecs += n * breakSecs;
   } else {
-    const longBreaks = Math.floor(n / 4);
+    const longBreaks = Math.floor(n / longBreakFreq);
     totalSecs += longBreaks * longBreakSecs + (n - longBreaks) * breakSecs;
   }
   const h = Math.floor(totalSecs / 3600);
@@ -1008,9 +1019,10 @@ function openTimerModal() {
   modalWasRunning = isRunning;
   if (isRunning) pause();
   modalOpen = true;
-  document.getElementById('focus-input').value     = secsToMmSs(focusSecs);
-  document.getElementById('break-input').value     = secsToMmSs(breakSecs);
-  document.getElementById('longbreak-input').value = longBreakSecs !== null ? secsToMmSs(longBreakSecs) : '';
+  document.getElementById('focus-input').value          = secsToMmSs(focusSecs);
+  document.getElementById('break-input').value          = secsToMmSs(breakSecs);
+  document.getElementById('longbreak-input').value      = longBreakSecs !== null ? secsToMmSs(longBreakSecs) : '';
+  document.getElementById('longbreak-freq-input').value = String(longBreakFreq);
   document.getElementById('timer-modal').classList.add('visible');
   setTimeout(() => {
     const fi = document.getElementById('focus-input');
@@ -1025,12 +1037,14 @@ function closeTimerModal() {
 }
 
 function saveTimerModal() {
-  const f  = parseMmSs(document.getElementById('focus-input').value);
-  const b  = parseMmSs(document.getElementById('break-input').value);
-  const lb = parseMmSs(document.getElementById('longbreak-input').value);
+  const f    = parseMmSs(document.getElementById('focus-input').value);
+  const b    = parseMmSs(document.getElementById('break-input').value);
+  const lb   = parseMmSs(document.getElementById('longbreak-input').value);
+  const lbfv = parseInt(document.getElementById('longbreak-freq-input').value.trim(), 10);
   if (f)  focusSecs     = f;
   if (b)  breakSecs     = b;
   longBreakSecs = lb || null; /* empty/invalid → disabled */
+  if (!isNaN(lbfv) && lbfv >= 0) longBreakFreq = lbfv;
   saveDurations();
   secondsLeft = isFocus ? focusSecs : (isLongBreak ? longBreakSecs ?? breakSecs : breakSecs);
   renderCountdown();
@@ -1043,16 +1057,17 @@ function saveTimerModal() {
 document.getElementById('modal-save').addEventListener('click', saveTimerModal);
 document.getElementById('modal-cancel').addEventListener('click', closeTimerModal);
 document.getElementById('modal-reset').addEventListener('click', () => {
-  document.getElementById('focus-input').value     = '25:00';
-  document.getElementById('break-input').value     = '05:00';
-  document.getElementById('longbreak-input').value = '20:00';
+  document.getElementById('focus-input').value          = '25:00';
+  document.getElementById('break-input').value          = '05:00';
+  document.getElementById('longbreak-input').value      = '20:00';
+  document.getElementById('longbreak-freq-input').value = '4';
 });
 document.getElementById('timer-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('timer-modal')) closeTimerModal();
 });
 
 /* Submit modal on Enter — stopPropagation prevents the global handler from also firing */
-['focus-input', 'break-input', 'longbreak-input'].forEach(id => {
+['focus-input', 'break-input', 'longbreak-input', 'longbreak-freq-input'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); saveTimerModal(); }
   });
