@@ -230,6 +230,48 @@
     }
     .modal-actions .modal-save-btn:hover { background: #bccf7a; border-color: #bccf7a; color: #0e0d14; }
 
+    /* ── Workout modal ── */
+    #workout-modal .modal { min-width: 320px; }
+    .workout-task-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .workout-task-row input {
+      flex: 1;
+      background: var(--card2);
+      border: 1px solid #44435a;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      font-family: Inter, sans-serif;
+      color: var(--text);
+      outline: none;
+      box-sizing: border-box;
+    }
+    .workout-task-row input:focus { border-color: var(--accent); }
+    .workout-task-remove {
+      background: none;
+      border: 1px solid #44435a;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      font-family: Inter, sans-serif;
+      color: var(--dim);
+      cursor: pointer;
+    }
+    .workout-task-remove:hover { border-color: var(--accent); color: var(--text); }
+    #workout-add-btn {
+      display: block;
+      background: none;
+      border: none;
+      color: var(--dim);
+      font-family: Inter, sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+    #workout-add-btn:hover { color: var(--text); }
+    #workout-summary { font-size: 0.75rem; color: var(--dim); margin: 12px 0 4px; }
+    .workout-toggle { display: flex; align-items: center; gap: 7px; margin: 10px 0 0; font-size: 0.82rem; color: var(--dim); cursor: pointer; user-select: none; }
+    .workout-toggle input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; margin: 0; }
+
     /* ── Narrow screens: stack label below timer ── */
     @media (max-width: 540px) {
       #timer-row { display: block; }
@@ -274,7 +316,8 @@
       <button class="reset-btn" id="autostart-btn">auto-start: breaks</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button><br>
       <button class="reset-btn" id="btn-fullscreen"><kbd>f</kbd> fullscreen</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-logbreaks"><kbd>b</kbd> log breaks: off</button>
+      <button class="reset-btn" id="btn-logbreaks"><kbd>b</kbd> log breaks: off</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-workout"><kbd>w</kbd> workout: off</button>
     </div>
   </div>
 
@@ -299,6 +342,23 @@
         <button id="modal-reset">Reset</button>
         <button id="modal-cancel">Cancel</button>
         <button class="modal-save-btn" id="modal-save">Set</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="workout-modal">
+    <div class="modal">
+      <p class="modal-title">Workout exercises</p>
+      <div id="workout-task-list"></div>
+      <button id="workout-add-btn">+ add exercise</button>
+      <label class="workout-toggle">
+        <input type="checkbox" id="workout-no-longbreak-check"> disable long breaks
+      </label>
+      <p id="workout-summary"></p>
+      <div class="modal-actions">
+        <button id="workout-deactivate">Deactivate</button>
+        <button id="workout-cancel">Cancel</button>
+        <button class="modal-save-btn" id="workout-save">Save</button>
       </div>
     </div>
   </div>
@@ -394,6 +454,10 @@ let autoStartMode    = 'breaks'; // 'off' | 'breaks' | 'on'
 let logBreaks        = false;
 let log              = [];
 // log entry: { label: string|null, startedAt: ISO|null, endedAt: ISO, durationSecs: number }
+let workoutMode        = false;
+let workoutTasks       = [];   // string[], persisted
+let workoutIndex       = 0;    // runtime only
+let workoutNoLongBreak = true; // persisted
 
 /* ── localStorage ── */
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
@@ -403,7 +467,10 @@ function saveLog()        { lsSet('pomo_log2',           JSON.stringify(log)); }
 function saveLabel()      { lsSet('pomo_label',           labelInput.value); }
 function saveAutoStart()  { lsSet('pomo_autostart',       autoStartMode); }
 function saveSound()      { lsSet('pomo_sound',           soundMode); }
-function saveLogBreaks()  { lsSet('pomo_log_breaks',      logBreaks ? '1' : ''); }
+function saveLogBreaks()    { lsSet('pomo_log_breaks',      logBreaks ? '1' : ''); }
+function saveWorkoutTasks()       { lsSet('pomo_workout_tasks',        JSON.stringify(workoutTasks)); }
+function saveWorkoutMode()        { lsSet('pomo_workout_mode',         workoutMode ? '1' : ''); }
+function saveWorkoutNoLongBreak() { lsSet('pomo_workout_no_longbreak', workoutNoLongBreak ? '1' : ''); }
 function saveDurations() {
   lsSet('pomo_focus_secs',     String(focusSecs));
   lsSet('pomo_break_secs',     String(breakSecs));
@@ -428,6 +495,16 @@ function loadSound() {
 function loadLogBreaks() {
   logBreaks = lsGet('pomo_log_breaks') === '1';
 }
+function loadWorkoutTasks() {
+  try { workoutTasks = JSON.parse(lsGet('pomo_workout_tasks')) || []; } catch { workoutTasks = []; }
+}
+function loadWorkoutMode() {
+  workoutMode = lsGet('pomo_workout_mode') === '1';
+}
+function loadWorkoutNoLongBreak() {
+  const v = lsGet('pomo_workout_no_longbreak');
+  workoutNoLongBreak = v === null ? true : v === '1'; // default true
+}
 function loadDurations() {
   const f  = parseInt(lsGet('pomo_focus_secs'),      10);
   const b  = parseInt(lsGet('pomo_break_secs'),      10);
@@ -443,6 +520,10 @@ function start() {
   /* record when this session begins (first start, not resume) */
   if (isFocus && sessionStartTime === null) {
     sessionStartTime = new Date().toISOString();
+    if (workoutMode && workoutTasks.length) {
+      labelInput.value = workoutTasks[workoutIndex] ?? '';
+      resizeLabelInput(); saveLabel();
+    }
   }
   if (!isFocus && breakStartTime === null) {
     breakStartTime = new Date().toISOString();
@@ -500,13 +581,25 @@ function onSessionEnd() {
       renderLog();
     }
     breakStartTime = null;
+    if (workoutMode) {
+      if (workoutIndex >= workoutTasks.length - 1) {
+        workoutComplete(); return;
+      }
+      workoutIndex++;
+    }
   }
 
   isFocus = !isFocus;
 
   if (!isFocus) {
     /* entering a break — every 4th focus completion is a long break */
-    isLongBreak = longBreakSecs !== null && log.length % 4 === 0;
+    isLongBreak = longBreakSecs !== null && log.length % 4 === 0
+      && !(workoutMode && workoutNoLongBreak);
+    if (workoutMode) {
+      const next = workoutTasks[workoutIndex + 1];
+      labelInput.value = next ? 'Next: ' + next : '';
+      resizeLabelInput(); saveLabel();
+    }
     secondsLeft = isLongBreak ? longBreakSecs : breakSecs;
   } else {
     isLongBreak = false;
@@ -517,9 +610,12 @@ function onSessionEnd() {
   renderCountdown();
   updateTitle();
 
-  /* auto-start: 'on' always starts; 'breaks' only starts when entering a break */
+  /* auto-start: workout always auto-starts; 'on' always; 'breaks' only on break */
   const entering = isFocus ? 'focus' : 'break';
-  if (autoStartMode === 'on' || (autoStartMode === 'breaks' && entering === 'break')) {
+  const shouldStart = workoutMode
+    || autoStartMode === 'on'
+    || (autoStartMode === 'breaks' && entering === 'break');
+  if (shouldStart) {
     setTimeout(start, 100);
   }
 }
@@ -529,6 +625,14 @@ function reset() {
   sessionStartTime = null;
   breakStartTime   = null;
   secondsLeft = isFocus ? focusSecs : (isLongBreak ? longBreakSecs : breakSecs);
+  if (workoutMode && workoutTasks.length) {
+    workoutIndex = 0;
+    isFocus = true;
+    secondsLeft = focusSecs;
+    labelInput.value = workoutTasks[0];
+    resizeLabelInput(); saveLabel();
+    renderSessionLabel();
+  }
   renderCountdown();
   updateTitle();
 }
@@ -553,9 +657,18 @@ function skip() {
 
   sessionStartTime = null;
   breakStartTime   = null;
+  if (workoutMode && !isFocus) {
+    if (workoutIndex >= workoutTasks.length - 1) { workoutComplete(); return; }
+    workoutIndex++;
+  }
   isFocus     = !isFocus;
   isLongBreak = false; /* skips don't trigger long break */
   secondsLeft = isFocus ? focusSecs : breakSecs;
+  if (!isFocus && workoutMode) {
+    const next = workoutTasks[workoutIndex + 1];
+    labelInput.value = next ? 'Next: ' + next : '';
+    resizeLabelInput(); saveLabel();
+  }
   renderSessionLabel();
   renderCountdown();
   updateTitle();
@@ -568,9 +681,16 @@ function skip() {
 /* ── Render ── */
 function renderSessionLabel() {
   const el = document.getElementById('session-label');
-  if      (isFocus)      el.textContent = 'focus';
-  else if (isLongBreak)  el.textContent = 'long break';
-  else                   el.textContent = 'break';
+  if (workoutMode && workoutTasks.length) {
+    const n = (workoutIndex + 1) + '/' + workoutTasks.length;
+    el.textContent = isFocus ? n + ' · Workout' : n + ' · Rest';
+  } else if (isFocus) {
+    el.textContent = 'focus';
+  } else if (isLongBreak) {
+    el.textContent = 'long break';
+  } else {
+    el.textContent = 'break';
+  }
 }
 
 function renderCountdown() {
@@ -678,6 +798,168 @@ function renderSoundBtn() {
 function renderLogBreaksBtn() {
   document.getElementById('btn-logbreaks').innerHTML = '<kbd>b</kbd> log breaks: ' + (logBreaks ? 'on' : 'off');
 }
+
+function renderWorkoutBtn() {
+  document.getElementById('btn-workout').innerHTML = workoutMode
+    ? '<kbd>w</kbd> workout: on (' + workoutTasks.length + ')'
+    : '<kbd>w</kbd> workout: off';
+}
+
+/* ── Workout complete ── */
+function workoutComplete() {
+  pause();
+  workoutIndex = 0;
+  isFocus      = true;
+  isLongBreak  = false;
+  secondsLeft  = focusSecs;
+  labelInput.value = '';
+  resizeLabelInput(); saveLabel();
+  document.getElementById('session-label').textContent = 'workout done';
+  renderCountdown(); updateTitle();
+}
+
+/* ── Workout modal ── */
+let workoutModalOpen       = false;
+let workoutModalWasRunning = false;
+let workoutDraft           = [];
+
+function renderWorkoutTaskList() {
+  const container = document.getElementById('workout-task-list');
+  container.innerHTML = '';
+  workoutDraft.forEach((task, i) => {
+    const row = document.createElement('div');
+    row.className = 'workout-task-row';
+
+    const input = document.createElement('input');
+    input.type        = 'text';
+    input.value       = task;
+    input.placeholder = 'Exercise name';
+    input.addEventListener('input', () => {
+      workoutDraft[i] = input.value;
+      renderWorkoutSummary(workoutDraft);
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault(); e.stopPropagation();
+        if (i === workoutDraft.length - 1) {
+          workoutDraft.push('');
+          renderWorkoutTaskList();
+        }
+        setTimeout(() => {
+          const inputs = document.querySelectorAll('#workout-task-list .workout-task-row input');
+          if (inputs[i + 1]) inputs[i + 1].focus();
+        }, 0);
+      }
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className   = 'workout-task-remove';
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', () => {
+      workoutDraft.splice(i, 1);
+      renderWorkoutTaskList();
+      renderWorkoutSummary(workoutDraft);
+    });
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+  });
+}
+
+function renderWorkoutSummary(draftTasks) {
+  const n  = draftTasks.filter(t => t.trim().length > 0).length;
+  const el = document.getElementById('workout-summary');
+  if (n === 0) { el.textContent = 'No exercises'; return; }
+  const noLB = document.getElementById('workout-no-longbreak-check').checked;
+  let totalSecs = n * focusSecs;
+  if (noLB || longBreakSecs === null) {
+    totalSecs += n * breakSecs;
+  } else {
+    const longBreaks = Math.floor(n / 4);
+    totalSecs += longBreaks * longBreakSecs + (n - longBreaks) * breakSecs;
+  }
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  let dur = '';
+  if (h > 0) dur += h + 'h ';
+  dur += m + 'm';
+  el.textContent = n + ' exercise' + (n === 1 ? '' : 's') + ' · ~' + dur.trim() + ' total';
+}
+
+function openWorkoutModal() {
+  workoutModalWasRunning = isRunning;
+  if (isRunning) pause();
+  workoutModalOpen = true;
+  modalOpen        = true;
+  workoutDraft     = [...workoutTasks];
+  if (workoutDraft.length === 0) workoutDraft.push('');
+  document.getElementById('workout-no-longbreak-check').checked = workoutNoLongBreak;
+  renderWorkoutTaskList();
+  renderWorkoutSummary(workoutDraft);
+  document.getElementById('workout-deactivate').style.display = workoutMode ? '' : 'none';
+  document.getElementById('workout-modal').classList.add('visible');
+  setTimeout(() => {
+    const first = document.querySelector('#workout-task-list .workout-task-row input');
+    if (first) first.focus();
+  }, 0);
+}
+
+function closeWorkoutModal() {
+  workoutModalOpen = false;
+  modalOpen        = false;
+  document.getElementById('workout-modal').classList.remove('visible');
+  if (workoutModalWasRunning) { workoutModalWasRunning = false; start(); }
+}
+
+function saveWorkoutModal() {
+  workoutTasks       = workoutDraft.map(t => t.trim()).filter(t => t.length > 0);
+  workoutMode        = workoutTasks.length > 0;
+  workoutIndex       = 0;
+  workoutNoLongBreak = document.getElementById('workout-no-longbreak-check').checked;
+  saveWorkoutTasks(); saveWorkoutMode(); saveWorkoutNoLongBreak();
+  if (workoutMode) {
+    isFocus      = true;
+    isLongBreak  = false;
+    secondsLeft  = focusSecs;
+    labelInput.value = workoutTasks[0];
+    resizeLabelInput(); saveLabel();
+    renderCountdown(); updateTitle();
+  }
+  renderSessionLabel();
+  renderWorkoutBtn();
+  workoutModalWasRunning = false;
+  closeWorkoutModal();
+}
+
+document.getElementById('workout-save').addEventListener('click', saveWorkoutModal);
+document.getElementById('workout-cancel').addEventListener('click', closeWorkoutModal);
+document.getElementById('workout-deactivate').addEventListener('click', () => {
+  workoutMode  = false;
+  workoutIndex = 0;
+  saveWorkoutMode();
+  labelInput.value = '';
+  resizeLabelInput(); saveLabel();
+  renderSessionLabel();
+  renderWorkoutBtn();
+  workoutModalWasRunning = false;
+  closeWorkoutModal();
+});
+document.getElementById('workout-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('workout-modal')) closeWorkoutModal();
+});
+document.getElementById('workout-no-longbreak-check').addEventListener('change', () => {
+  renderWorkoutSummary(workoutDraft);
+});
+document.getElementById('workout-add-btn').addEventListener('click', () => {
+  workoutDraft.push('');
+  renderWorkoutTaskList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#workout-task-list .workout-task-row input');
+    if (inputs[inputs.length - 1]) inputs[inputs.length - 1].focus();
+  }, 0);
+});
+document.getElementById('btn-workout').addEventListener('click', openWorkoutModal);
 
 /* ── Log-breaks toggle ── */
 document.getElementById('btn-logbreaks').addEventListener('click', () => {
@@ -849,6 +1131,7 @@ document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   if (e.key === 'Escape') {
+    if (workoutModalOpen) { closeWorkoutModal(); return; }
     if (modalOpen) { closeTimerModal(); return; }
     if (document.activeElement === labelInput) { labelInput.blur(); return; }
     return;
@@ -885,6 +1168,7 @@ document.addEventListener('keydown', e => {
   }
   if (e.key === 'b' || e.key === 'B') { logBreaks = !logBreaks; saveLogBreaks(); renderLogBreaksBtn(); }
   if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+  if (e.key === 'w' || e.key === 'W') openWorkoutModal();
 });
 
 /* ── Countdown click ── */
@@ -915,10 +1199,19 @@ loadLabel();
 loadAutoStart();
 loadSound();
 loadLogBreaks();
+loadWorkoutTasks();
+loadWorkoutMode();
+loadWorkoutNoLongBreak();
 renderLog();
 renderAutoStartBtn();
 renderSoundBtn();
 renderLogBreaksBtn();
+renderWorkoutBtn();
+renderSessionLabel();
+if (workoutMode && workoutTasks.length) {
+  labelInput.value = workoutTasks[0];
+  resizeLabelInput();
+}
 renderCountdown();
 updateTitle();
 
