@@ -2,7 +2,8 @@
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub-Pages-blue?logo=github)](https://moltaire.github.io/pomodoro/)
 
-Browser-based Pomodoro timer for my personal use. Vibe coded with [Claude](https://claude.ai).
+Browser-based Pomodoro timer for my personal use. Should work well as a progressive web app or just live in a tab.  
+Vibe coded with [Claude](https://claude.ai).
 
 <img src="screenshot.png" alt="Pomodoro Screenshot" width="75%" height="auto">
 
