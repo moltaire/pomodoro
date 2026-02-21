@@ -705,7 +705,12 @@ function secsToMmSs(secs) {
 
 function parseMmSs(str) {
   if (!str || !str.trim()) return null;
-  const parts = str.trim().split(':');
+  const trimmed = str.trim();
+  if (/^\d+s$/i.test(trimmed)) {
+    const s = parseInt(trimmed, 10);
+    if (!isNaN(s) && s > 0) return s;
+  }
+  const parts = trimmed.split(':');
   if (parts.length === 2) {
     const m = parseInt(parts[0], 10);
     const s = parseInt(parts[1], 10);
