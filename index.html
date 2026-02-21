@@ -1184,9 +1184,20 @@ document.addEventListener('keydown', e => {
   if (e.key === 'b' || e.key === 'B') { logBreaks = !logBreaks; saveLogBreaks(); renderLogBreaksBtn(); }
   if (e.key === 'f' || e.key === 'F') toggleFullscreen();
   if (e.key === 'w' || e.key === 'W') openWorkoutModal();
+  if (e.key === 'h' || e.key === 'H') toggleHints();
 });
 
 /* ── Countdown click ── */
+/* ── Hints toggle ── */
+let hintsHidden = false;
+function toggleHints() {
+  hintsHidden = !hintsHidden;
+  document.querySelector('.instructions').style.display = hintsHidden ? 'none' : '';
+}
+document.body.addEventListener('dblclick', e => {
+  if (e.target === document.body) toggleHints();
+});
+
 document.getElementById('countdown').addEventListener('click', () => { isRunning ? pause() : start(); });
 
 /* ── Button click listeners ── */
