@@ -608,7 +608,7 @@ function onSessionEnd() {
       && !(workoutMode && workoutNoLongBreak);
     if (workoutMode) {
       const next = workoutTasks[workoutIndex + 1];
-      labelInput.value = next ? 'Next: ' + next : '';
+      labelInput.value = next ? 'Next:\n' + next : '';
       resizeLabelInput(); saveLabel();
     }
     secondsLeft = isLongBreak ? longBreakSecs : breakSecs;
@@ -677,7 +677,7 @@ function skip() {
   secondsLeft = isFocus ? focusSecs : breakSecs;
   if (!isFocus && workoutMode) {
     const next = workoutTasks[workoutIndex + 1];
-    labelInput.value = next ? 'Next: ' + next : '';
+    labelInput.value = next ? 'Next:\n' + next : '';
     resizeLabelInput(); saveLabel();
   }
   renderSessionLabel();
