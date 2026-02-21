@@ -1103,15 +1103,53 @@ function toICSDate(date) {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
 
-function exportICS() {
+function escapeICS(str) {
+  return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+}
+
+function _icsBlob(lines) {
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'pomodoro.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportICSSummary() {
+  const entries = log.filter(e => e.startedAt && e.endedAt);
+  if (entries.length === 0) { labelInput.value = 'Focus first.'; saveLabel(); resizeLabelInput(); return; }
+
+  const first = entries[0];
+  const last  = entries[entries.length - 1];
+  const title = workoutMode ? 'Workout' : 'Pomodoro session';
+
+  const desc = entries.map(entry => {
+    if (entry.type === 'break') return '🟦 Break (' + fmtDur(entry.durationSecs ?? 0) + ')';
+    const label = entry.label || 'Focus';
+    return (entry.skipped ? '🟡' : '🔴') + ' ' + label + (entry.skipped ? ' – skipped' : '') + ' (' + fmtDur(entry.durationSecs ?? 0) + ')';
+  }).join('\n');
+
+  _icsBlob([
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
+    'PRODID:-//moltaire//Pomodoro//EN', 'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    'UID:pomo-session-' + first.startedAt + '@pomodoro',
+    'DTSTART:' + toICSDate(new Date(first.startedAt)),
+    'DTEND:'   + toICSDate(new Date(last.endedAt)),
+    'SUMMARY:' + escapeICS(title),
+    'DESCRIPTION:' + escapeICS(desc),
+    'END:VEVENT', 'END:VCALENDAR',
+  ]);
+}
+
+function exportICSDetailed() {
   const entries = log.filter(e => e.startedAt && e.endedAt);
   if (entries.length === 0) { labelInput.value = 'Focus first.'; saveLabel(); resizeLabelInput(); return; }
 
   const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//moltaire//Pomodoro//EN',
-    'CALSCALE:GREGORIAN',
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
+    'PRODID:-//moltaire//Pomodoro//EN', 'CALSCALE:GREGORIAN',
   ];
 
   entries.forEach((entry, i) => {
@@ -1127,18 +1165,12 @@ function exportICS() {
     lines.push('UID:pomo-' + i + '-' + entry.startedAt + '@pomodoro');
     lines.push('DTSTART:' + toICSDate(new Date(entry.startedAt)));
     lines.push('DTEND:'   + toICSDate(new Date(entry.endedAt)));
-    lines.push('SUMMARY:' + summary);
+    lines.push('SUMMARY:' + escapeICS(summary));
     lines.push('END:VEVENT');
   });
 
   lines.push('END:VCALENDAR');
-
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
-  const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
-  a.download = 'pomodoro.ics';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  _icsBlob(lines);
 }
 
 /* ── Label input ── */
@@ -1191,7 +1223,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'r' || e.key === 'R') reset();
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); openTimerModal(); }
   if (e.key === 'c' || e.key === 'C') { log = []; focusSessionCount = 0; saveLog(); saveFocusCount(); renderLog(); }
-  if (e.key === 'e' || e.key === 'E') exportICS();
+  if (e.key === 'e') exportICSSummary();
+  if (e.key === 'E') exportICSDetailed();
   if (e.key === 'Backspace')          { e.preventDefault(); labelInput.value = ''; saveLabel(); resizeLabelInput(); }
   if (e.key === 'a' || e.key === 'A') {
     autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
@@ -1230,7 +1263,28 @@ document.getElementById('btn-label').addEventListener('click', () => {
 });
 document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; saveLabel(); resizeLabelInput(); });
 document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; focusSessionCount = 0; saveLog(); saveFocusCount(); renderLog(); });
-document.getElementById('btn-export').addEventListener('click', exportICS);
+/* short press = summary, long press (500ms) = detailed */
+(function () {
+  const btn = document.getElementById('btn-export');
+  let timer = null;
+  let fired = false;
+  function down() {
+    fired = false;
+    timer = setTimeout(() => { fired = true; exportICSDetailed(); }, 500);
+  }
+  function up() {
+    clearTimeout(timer);
+    if (!fired) exportICSSummary();
+    fired = false;
+  }
+  function cancel() { clearTimeout(timer); fired = false; }
+  btn.addEventListener('mousedown',  down);
+  btn.addEventListener('mouseup',    up);
+  btn.addEventListener('mouseleave', cancel);
+  btn.addEventListener('touchstart', e => { e.preventDefault(); down(); }, { passive: false });
+  btn.addEventListener('touchend',   e => { e.preventDefault(); up();   }, { passive: false });
+  btn.addEventListener('touchcancel',cancel);
+})();
 document.getElementById('btn-sound').addEventListener('click', () => {
   soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
   saveSound(); renderSoundBtn();
