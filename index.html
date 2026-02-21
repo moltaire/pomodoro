@@ -4,7 +4,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1c1b22">
-  <link id="page-favicon" rel="icon" /><script>document.getElementById('page-favicon').href='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍅</text></svg>');</script>
+  <link id="page-favicon" rel="icon" /><script>document.getElementById('page-favicon').href='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔴</text></svg>');</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>00:05</title>
@@ -100,8 +100,10 @@
     }
     #tomato-row.detail-open { margin-bottom: 6px; }
 
-    .tomato { cursor: pointer; padding: 2px; border-radius: 4px; }
+    .tomato { cursor: pointer; padding: 2px; border-radius: 4px; line-height: 0; display: inline-block; vertical-align: bottom; }
     .tomato.active { background: var(--card); }
+    .tomato svg { width: 1.2em; height: 1.2em; display: block; }
+    #pomo-detail svg { width: 1em; height: 1em; display: inline-block; vertical-align: middle; }
 
     #pomo-detail {
       display: none;
@@ -271,7 +273,8 @@
       <button class="reset-btn" id="btn-durations"><kbd>d</kbd> durations</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="autostart-btn">auto-start: breaks</button> &nbsp;·&nbsp;
       <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button><br>
-      <button class="reset-btn" id="btn-fullscreen"><kbd>f</kbd> fullscreen</button>
+      <button class="reset-btn" id="btn-fullscreen"><kbd>f</kbd> fullscreen</button> &nbsp;·&nbsp;
+      <button class="reset-btn" id="btn-logbreaks"><kbd>b</kbd> log breaks: off</button>
     </div>
   </div>
 
@@ -304,7 +307,12 @@
 
 <script>
 
-/* ── emoji favicon (dynamic switching for Firefox/Chrome; initial 🍅 set in <head>) ── */
+/* ── Bauhaus log icons ── */
+const SVG_CIRCLE      = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#CE3F32"/></svg>';
+const SVG_HALF_CIRCLE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8,0.5 A7.5,7.5 0 0,0 8,15.5 Z" fill="#F4BA40"/></svg>';
+const SVG_SQUARE      = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="1.2" y="1.2" width="13.6" height="13.6" fill="#2A62B6"/></svg>';
+
+/* ── emoji favicon (dynamic switching for Firefox/Chrome; initial 🟥 set in <head>) ── */
 const _faviconLink = document.getElementById('page-favicon');
 function _setFaviconEmoji(emoji) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`;
@@ -381,7 +389,9 @@ let secondsLeft      = focusSecs;
 let isRunning        = false;
 let timerId          = null;
 let sessionStartTime = null; // ISO string, set when a focus session begins
+let breakStartTime   = null; // ISO string, set when a break timer begins
 let autoStartMode    = 'breaks'; // 'off' | 'breaks' | 'on'
+let logBreaks        = false;
 let log              = [];
 // log entry: { label: string|null, startedAt: ISO|null, endedAt: ISO, durationSecs: number }
 
@@ -389,10 +399,11 @@ let log              = [];
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
 
-function saveLog()       { lsSet('pomo_log2',           JSON.stringify(log)); }
-function saveLabel()     { lsSet('pomo_label',           labelInput.value); }
-function saveAutoStart() { lsSet('pomo_autostart',       autoStartMode); }
-function saveSound()     { lsSet('pomo_sound',           soundMode); }
+function saveLog()        { lsSet('pomo_log2',           JSON.stringify(log)); }
+function saveLabel()      { lsSet('pomo_label',           labelInput.value); }
+function saveAutoStart()  { lsSet('pomo_autostart',       autoStartMode); }
+function saveSound()      { lsSet('pomo_sound',           soundMode); }
+function saveLogBreaks()  { lsSet('pomo_log_breaks',      logBreaks ? '1' : ''); }
 function saveDurations() {
   lsSet('pomo_focus_secs',     String(focusSecs));
   lsSet('pomo_break_secs',     String(breakSecs));
@@ -414,6 +425,9 @@ function loadSound() {
   const v = lsGet('pomo_sound');
   soundMode = (v === 'finish' || v === 'off') ? v : 'on';
 }
+function loadLogBreaks() {
+  logBreaks = lsGet('pomo_log_breaks') === '1';
+}
 function loadDurations() {
   const f  = parseInt(lsGet('pomo_focus_secs'),      10);
   const b  = parseInt(lsGet('pomo_break_secs'),      10);
@@ -426,9 +440,12 @@ function loadDurations() {
 /* ── Timer — setTimeout-based for reliability ── */
 function start() {
   if (isRunning) return;
-  /* record when this focus session begins (first start, not resume) */
+  /* record when this session begins (first start, not resume) */
   if (isFocus && sessionStartTime === null) {
     sessionStartTime = new Date().toISOString();
+  }
+  if (!isFocus && breakStartTime === null) {
+    breakStartTime = new Date().toISOString();
   }
   isRunning = true;
   timerId   = setTimeout(tick, 1000);
@@ -470,6 +487,19 @@ function onSessionEnd() {
     sessionStartTime = null;
     saveLog();
     renderLog();
+  } else {
+    if (logBreaks) {
+      const endedAt = new Date().toISOString();
+      log.push({
+        type:        'break',
+        startedAt:   breakStartTime,
+        endedAt,
+        durationSecs: isLongBreak ? longBreakSecs : breakSecs,
+      });
+      saveLog();
+      renderLog();
+    }
+    breakStartTime = null;
   }
 
   isFocus = !isFocus;
@@ -497,6 +527,7 @@ function onSessionEnd() {
 function reset() {
   pause();
   sessionStartTime = null;
+  breakStartTime   = null;
   secondsLeft = isFocus ? focusSecs : (isLongBreak ? longBreakSecs : breakSecs);
   renderCountdown();
   updateTitle();
@@ -521,6 +552,7 @@ function skip() {
   }
 
   sessionStartTime = null;
+  breakStartTime   = null;
   isFocus     = !isFocus;
   isLongBreak = false; /* skips don't trigger long break */
   secondsLeft = isFocus ? focusSecs : breakSecs;
@@ -553,7 +585,7 @@ function updateTitle() {
   const s = secondsLeft % 60;
   const t = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
   document.title = t;
-  _setFaviconEmoji(isFocus ? '🍅' : '☕');
+  _setFaviconEmoji(isFocus ? '🔴' : '🟦');
 }
 
 /* ── Pomo detail panel ── */
@@ -595,14 +627,14 @@ function showPomoDetail(i) {
   document.querySelectorAll('.tomato')[i].classList.add('active');
   document.getElementById('tomato-row').classList.add('detail-open');
 
-  const emoji    = entry.skipped ? '🍑' : '🍅';
-  const status   = entry.skipped ? 'skipped' : 'completed';
+  const icon     = entry.type === 'break' ? SVG_SQUARE : entry.skipped ? SVG_HALF_CIRCLE : SVG_CIRCLE;
+  const status   = entry.type === 'break' ? 'break' : entry.skipped ? 'skipped' : 'completed';
   const duration = fmtDur(entry.durationSecs ?? 0);
   const timeStr  = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
 
   const d = document.getElementById('pomo-detail');
   d.innerHTML =
-    '<span class="detail-label">' + emoji + (entry.label ? ' ' + entry.label : '') + '</span><br>' +
+    '<span class="detail-label">' + icon + (entry.label ? ' ' + entry.label : '') + '</span><br>' +
     status + ' &nbsp;·&nbsp; ' + duration + ' &nbsp;·&nbsp; ' + timeStr;
   d.classList.add('visible');
   updateArrow(i);
@@ -620,7 +652,7 @@ function renderLog() {
     const span = document.createElement('span');
     span.className   = 'tomato';
     if (i === detailIndex) span.classList.add('active');
-    span.textContent = entry.skipped ? '🍑' : '🍅';
+    span.innerHTML = entry.type === 'break' ? SVG_SQUARE : entry.skipped ? SVG_HALF_CIRCLE : SVG_CIRCLE;
     /* hover title */
     const parts = [];
     if (entry.label)   parts.push(entry.label);
@@ -642,6 +674,17 @@ function renderAutoStartBtn() {
 function renderSoundBtn() {
   document.getElementById('btn-sound').innerHTML = '<kbd>m</kbd> sound: ' + soundMode;
 }
+
+function renderLogBreaksBtn() {
+  document.getElementById('btn-logbreaks').innerHTML = '<kbd>b</kbd> log breaks: ' + (logBreaks ? 'on' : 'off');
+}
+
+/* ── Log-breaks toggle ── */
+document.getElementById('btn-logbreaks').addEventListener('click', () => {
+  logBreaks = !logBreaks;
+  saveLogBreaks();
+  renderLogBreaksBtn();
+});
 
 /* ── Auto-start toggle (cycles: off → breaks → on → off) ── */
 document.getElementById('autostart-btn').addEventListener('click', () => {
@@ -835,6 +878,7 @@ document.addEventListener('keydown', e => {
     soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
     saveSound(); renderSoundBtn();
   }
+  if (e.key === 'b' || e.key === 'B') { logBreaks = !logBreaks; saveLogBreaks(); renderLogBreaksBtn(); }
   if (e.key === 'f' || e.key === 'F') toggleFullscreen();
 });
 
@@ -865,9 +909,11 @@ loadLog();
 loadLabel();
 loadAutoStart();
 loadSound();
+loadLogBreaks();
 renderLog();
 renderAutoStartBtn();
 renderSoundBtn();
+renderLogBreaksBtn();
 renderCountdown();
 updateTitle();
 
