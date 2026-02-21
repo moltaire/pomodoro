@@ -1102,7 +1102,14 @@ function exportICS() {
   ];
 
   entries.forEach((entry, i) => {
-    const summary = '🍅' + (entry.label ? ' ' + entry.label : ' Focus session');
+    let summary;
+    if (entry.type === 'break') {
+      summary = '🟦 Break';
+    } else if (entry.skipped) {
+      summary = '🟡' + (entry.label ? ' ' + entry.label : ' Focus session');
+    } else {
+      summary = '🔴' + (entry.label ? ' ' + entry.label : ' Focus session');
+    }
     lines.push('BEGIN:VEVENT');
     lines.push('UID:pomo-' + i + '-' + entry.startedAt + '@pomodoro');
     lines.push('DTSTART:' + toICSDate(new Date(entry.startedAt)));
