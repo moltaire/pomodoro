@@ -117,6 +117,33 @@
     }
     #pomo-detail.visible { display: block; }
     #pomo-detail .detail-label { color: var(--text); font-weight: 500; }
+    #pomo-detail .detail-top { display: flex; justify-content: space-between; align-items: center; }
+    .detail-label-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid transparent;
+      outline: none;
+      font-family: Inter, sans-serif;
+      font-size: inherit;
+      font-weight: 500;
+      color: var(--text);
+      padding: 0;
+      width: 16ch;
+      max-width: 40ch;
+    }
+    .detail-label-input:focus { border-bottom-color: var(--dim); }
+    .detail-label-input::placeholder { color: var(--dim); font-weight: 400; }
+    .detail-trash-btn {
+      background: none;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 0 0 10px;
+      flex-shrink: 0;
+    }
+    .detail-trash-btn:hover { color: var(--text); }
 
     .instructions {
       color: var(--dim);
@@ -777,9 +804,60 @@ function showPomoDetail(i) {
   const timeStr  = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
 
   const d = document.getElementById('pomo-detail');
-  d.innerHTML =
-    '<span class="detail-label">' + icon + (entry.label ? ' ' + entry.label : '') + '</span><br>' +
-    status + ' &nbsp;·&nbsp; ' + duration + ' &nbsp;·&nbsp; ' + timeStr;
+  d.innerHTML = '';
+
+  /* top row: icon + editable label + trash */
+  const top = document.createElement('div');
+  top.className = 'detail-top';
+
+  const labelSpan = document.createElement('span');
+  labelSpan.className = 'detail-label';
+  labelSpan.innerHTML = icon + ' ';
+
+  const inp = document.createElement('input');
+  inp.className   = 'detail-label-input';
+  inp.type        = 'text';
+  inp.value       = entry.label || '';
+  inp.placeholder = entry.type === 'break' ? 'Break' : 'Focus';
+  inp.addEventListener('click',   e => e.stopPropagation());
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') inp.blur();
+    e.stopPropagation();
+  });
+  inp.addEventListener('blur', () => {
+    const val = inp.value.trim() || null;
+    log[i].label = val;
+    saveLog();
+    const t = document.querySelectorAll('.tomato')[i];
+    if (t) {
+      const parts = [];
+      if (val) parts.push(val);
+      if (entry.skipped) parts.push('skipped');
+      if (entry.endedAt) parts.push(fmtTime(entry.endedAt));
+      t.title = parts.join(' · ');
+    }
+  });
+  labelSpan.appendChild(inp);
+
+  const trash = document.createElement('button');
+  trash.className   = 'detail-trash-btn';
+  trash.textContent = '×';
+  trash.addEventListener('click', e => {
+    e.stopPropagation();
+    log.splice(i, 1);
+    saveLog();
+    closePomoDetail();
+    renderLog();
+  });
+
+  top.appendChild(labelSpan);
+  top.appendChild(trash);
+
+  const meta = document.createElement('div');
+  meta.innerHTML = status + ' &nbsp;·&nbsp; ' + duration + ' &nbsp;·&nbsp; ' + timeStr;
+
+  d.appendChild(top);
+  d.appendChild(meta);
   d.classList.add('visible');
   updateArrow(i);
 }
@@ -1125,7 +1203,7 @@ function exportICSSummary() {
   const title = workoutMode ? 'Workout' : 'Pomodoro session';
 
   const desc = entries.map(entry => {
-    if (entry.type === 'break') return '🟦 Break (' + fmtDur(entry.durationSecs ?? 0) + ')';
+    if (entry.type === 'break') return '🟦 ' + (entry.label || 'Break') + ' (' + fmtDur(entry.durationSecs ?? 0) + ')';
     const label = entry.label || 'Focus';
     return (entry.skipped ? '🟡' : '🔴') + ' ' + label + (entry.skipped ? ' – skipped' : '') + ' (' + fmtDur(entry.durationSecs ?? 0) + ')';
   }).join('\n');
@@ -1155,11 +1233,11 @@ function exportICSDetailed() {
   entries.forEach((entry, i) => {
     let summary;
     if (entry.type === 'break') {
-      summary = '🟦 Break';
+      summary = '🟦 ' + (entry.label || 'Break');
     } else if (entry.skipped) {
-      summary = '🟡' + (entry.label ? ' ' + entry.label : ' Focus session');
+      summary = '🟡' + (entry.label ? ' ' + entry.label : ' Focus');
     } else {
-      summary = '🔴' + (entry.label ? ' ' + entry.label : ' Focus session');
+      summary = '🔴' + (entry.label ? ' ' + entry.label : ' Focus');
     }
     lines.push('BEGIN:VEVENT');
     lines.push('UID:pomo-' + i + '-' + entry.startedAt + '@pomodoro');
