@@ -464,6 +464,7 @@ let workoutMode        = false;
 let workoutTasks       = [];   // string[], persisted
 let workoutIndex       = 0;    // runtime only
 let workoutNoLongBreak = true; // persisted
+let focusSessionCount  = 0;    // persisted; drives long break frequency
 
 /* ── localStorage ── */
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
@@ -477,6 +478,7 @@ function saveLogBreaks()    { lsSet('pomo_log_breaks',      logBreaks ? '1' : ''
 function saveWorkoutTasks()       { lsSet('pomo_workout_tasks',        JSON.stringify(workoutTasks)); }
 function saveWorkoutMode()        { lsSet('pomo_workout_mode',         workoutMode ? '1' : ''); }
 function saveWorkoutNoLongBreak() { lsSet('pomo_workout_no_longbreak', workoutNoLongBreak ? '1' : ''); }
+function saveFocusCount()         { lsSet('pomo_focus_count',          String(focusSessionCount)); }
 function saveDurations() {
   lsSet('pomo_focus_secs',      String(focusSecs));
   lsSet('pomo_break_secs',      String(breakSecs));
@@ -511,6 +513,10 @@ function loadWorkoutMode() {
 function loadWorkoutNoLongBreak() {
   const v = lsGet('pomo_workout_no_longbreak');
   workoutNoLongBreak = v === null ? true : v === '1'; // default true
+}
+function loadFocusCount() {
+  const v = parseInt(lsGet('pomo_focus_count'), 10);
+  if (!isNaN(v) && v >= 0) focusSessionCount = v;
 }
 function loadDurations() {
   const f   = parseInt(lsGet('pomo_focus_secs'),      10);
@@ -575,6 +581,8 @@ function onSessionEnd() {
       durationSecs: focusSecs,
     });
     sessionStartTime = null;
+    focusSessionCount++;
+    saveFocusCount();
     saveLog();
     renderLog();
   } else {
@@ -601,10 +609,9 @@ function onSessionEnd() {
   isFocus = !isFocus;
 
   if (!isFocus) {
-    /* entering a break — every 4th focus completion is a long break */
-    const focusCount = log.filter(e => e.type !== 'break').length;
+    /* entering a break — long break every N focus sessions */
     isLongBreak = longBreakSecs !== null && longBreakFreq > 0
-      && focusCount % longBreakFreq === 0
+      && focusSessionCount % longBreakFreq === 0
       && !(workoutMode && workoutNoLongBreak);
     if (workoutMode) {
       const next = workoutTasks[workoutIndex + 1];
@@ -668,13 +675,19 @@ function skip() {
 
   sessionStartTime = null;
   breakStartTime   = null;
+  if (isFocus) {
+    focusSessionCount++;
+    saveFocusCount();
+  }
   if (workoutMode && !isFocus) {
     if (workoutIndex >= workoutTasks.length - 1) { workoutComplete(); return; }
     workoutIndex++;
   }
   isFocus     = !isFocus;
-  isLongBreak = false; /* skips don't trigger long break */
-  secondsLeft = isFocus ? focusSecs : breakSecs;
+  isLongBreak = !isFocus && longBreakSecs !== null && longBreakFreq > 0
+    && focusSessionCount % longBreakFreq === 0
+    && !(workoutMode && workoutNoLongBreak);
+  secondsLeft = isFocus ? focusSecs : (isLongBreak ? longBreakSecs : breakSecs);
   if (!isFocus && workoutMode) {
     const next = workoutTasks[workoutIndex + 1];
     labelInput.value = next ? 'Next:\n' + next : '';
@@ -1177,7 +1190,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 's' || e.key === 'S') skip();
   if (e.key === 'r' || e.key === 'R') reset();
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); openTimerModal(); }
-  if (e.key === 'c' || e.key === 'C') { log = []; saveLog(); renderLog(); }
+  if (e.key === 'c' || e.key === 'C') { log = []; focusSessionCount = 0; saveLog(); saveFocusCount(); renderLog(); }
   if (e.key === 'e' || e.key === 'E') exportICS();
   if (e.key === 'Backspace')          { e.preventDefault(); labelInput.value = ''; saveLabel(); resizeLabelInput(); }
   if (e.key === 'a' || e.key === 'A') {
@@ -1216,7 +1229,7 @@ document.getElementById('btn-label').addEventListener('click', () => {
   if (document.activeElement === labelInput) labelInput.blur(); else labelInput.focus();
 });
 document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; saveLabel(); resizeLabelInput(); });
-document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; saveLog(); renderLog(); });
+document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; focusSessionCount = 0; saveLog(); saveFocusCount(); renderLog(); });
 document.getElementById('btn-export').addEventListener('click', exportICS);
 document.getElementById('btn-sound').addEventListener('click', () => {
   soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
@@ -1235,6 +1248,7 @@ loadLogBreaks();
 loadWorkoutTasks();
 loadWorkoutMode();
 loadWorkoutNoLongBreak();
+loadFocusCount();
 renderLog();
 renderAutoStartBtn();
 renderSoundBtn();
