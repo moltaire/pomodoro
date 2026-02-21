@@ -700,6 +700,20 @@ function skip() {
     renderLog();
   }
 
+  /* log skipped break if break logging is enabled and break was actually started */
+  if (!isFocus && logBreaks && breakStartTime !== null) {
+    const endedAt = new Date().toISOString();
+    log.push({
+      type:        'break',
+      startedAt:   breakStartTime,
+      endedAt,
+      durationSecs: (isLongBreak ? longBreakSecs : breakSecs) - secondsLeft,
+      skipped:     true,
+    });
+    saveLog();
+    renderLog();
+  }
+
   sessionStartTime = null;
   breakStartTime   = null;
   if (isFocus) {
