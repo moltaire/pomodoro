@@ -481,6 +481,7 @@ let isLongBreak      = false;
 let secondsLeft      = focusSecs;
 let isRunning        = false;
 let timerId          = null;
+let deadlineMs       = null; // wall-clock ms when the current session reaches 0
 let sessionStartTime = null; // ISO string, set when a focus session begins
 let breakStartTime   = null; // ISO string, set when a break timer begins
 let autoStartMode    = 'breaks'; // 'off' | 'breaks' | 'on'
@@ -556,6 +557,33 @@ function loadDurations() {
   if (!isNaN(lbf) && lbf >= 0) longBreakFreq = lbf;
 }
 
+/* ── Screen Wake Lock — keeps display on while timer runs ── */
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) { /* permission denied or not supported */ }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+
+/* When app returns to foreground: resume audio + resync timer from wall clock */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (isRunning && deadlineMs !== null) {
+    requestWakeLock();
+    clearTimeout(timerId);
+    timerId = null;
+    tick(); /* immediately resync display from wall clock */
+  }
+});
+
 /* ── Timer — setTimeout-based for reliability ── */
 function start() {
   if (isRunning) return;
@@ -570,20 +598,24 @@ function start() {
   if (!isFocus && breakStartTime === null) {
     breakStartTime = new Date().toISOString();
   }
-  isRunning = true;
-  timerId   = setTimeout(tick, 1000);
+  isRunning  = true;
+  deadlineMs = Date.now() + secondsLeft * 1000;
+  requestWakeLock();
+  timerId = setTimeout(tick, 1000);
 }
 
 function pause() {
   if (!isRunning) return;
-  isRunning = false;
+  isRunning  = false;
+  deadlineMs = null;
   clearTimeout(timerId);
   timerId = null;
+  releaseWakeLock();
 }
 
 function tick() {
   if (!isRunning) return;
-  secondsLeft--;
+  secondsLeft = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000));
   if (soundMode === 'on' && isFocus) playTick();
   renderCountdown();
   updateTitle();
@@ -595,8 +627,10 @@ function tick() {
 }
 
 function onSessionEnd() {
-  isRunning = false;
-  timerId   = null;
+  isRunning  = false;
+  timerId    = null;
+  deadlineMs = null;
+  releaseWakeLock();
   if (soundMode === 'on' || soundMode === 'finish') playDone();
 
   if (isFocus) {
