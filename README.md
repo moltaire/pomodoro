@@ -33,6 +33,6 @@ Vibe coded with [Claude](https://claude.ai).
 
 ## workout mode
 
-Press `w` to open the workout modal and define an ordered list of exercises. Once saved, the timer cycles through them automatically — focus → rest → next exercise — and stops after the last rest. The session label shows progress (`2/3 · Workout`) and the task label updates to `Next: exercise` during rest periods.
+Press `w` to open the workout settings and define a list of exercises. Once saved, the timer cycles through them automatically — focus → rest → next exercise — and stops after the last rest.
 
-The modal also lets you disable long breaks for the workout and shows an estimated total duration.
+The popup also lets you disable long breaks for the workout and shows an estimated total duration.
