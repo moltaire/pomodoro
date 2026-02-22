@@ -1251,9 +1251,10 @@ function exportICSSummary() {
   const title = workoutMode ? 'Workout' : 'Pomodoro session';
 
   const desc = entries.map(entry => {
-    if (entry.type === 'break') return '🟦 ' + (entry.label || 'Break') + ' (' + fmtDur(entry.durationSecs ?? 0) + ')';
+    const timeRange = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
+    if (entry.type === 'break') return '🟦 ' + (entry.label || 'Break') + ' (' + fmtDur(entry.durationSecs ?? 0) + ') · ' + timeRange;
     const label = entry.label || 'Focus';
-    return (entry.skipped ? '🟡' : '🔴') + ' ' + label + (entry.skipped ? ' – skipped' : '') + ' (' + fmtDur(entry.durationSecs ?? 0) + ')';
+    return (entry.skipped ? '🟡' : '🔴') + ' ' + label + (entry.skipped ? ' – skipped' : '') + ' (' + fmtDur(entry.durationSecs ?? 0) + ') · ' + timeRange;
   }).join('\n');
 
   _icsBlob([
