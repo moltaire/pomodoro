@@ -1248,7 +1248,7 @@ function exportICSSummary() {
 
   const first = entries[0];
   const last  = entries[entries.length - 1];
-  const title = workoutMode ? 'Workout' : 'Pomodoro session';
+  const title = workoutMode ? 'Workout' : '🔴🟡🟦 pomodoro';
 
   const desc = entries.map(entry => {
     const timeRange = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
