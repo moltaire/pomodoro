@@ -151,6 +151,9 @@
       line-height: 1.9;
     }
 
+    .instr-row { display: grid; grid-template-columns: 3rem 1fr; align-items: baseline; }
+    .instr-section { text-align: right; padding-right: 10px; opacity: 0.5; }
+
     kbd {
       background: #18171e;
       color: #b6b3bc;
@@ -303,6 +306,7 @@
     @media (max-width: 540px) {
       #timer-row { display: block; }
       #label-input { display: block; width: 100%; box-sizing: border-box; font-size: 2rem; letter-spacing: -1px; }
+      .instr-br { display: none; }
     }
 
     /* ── GitHub link ── */
@@ -313,7 +317,7 @@
       font-size: 0.68rem;
       color: var(--dim);
       text-decoration: none;
-      opacity: 0.45;
+      opacity: 0.2;
       transition: opacity 0.15s;
     }
     .gh-link:hover { opacity: 1; }
@@ -332,19 +336,40 @@
     <div id="tomato-row"></div>
     <div id="pomo-detail"></div>
     <div class="instructions">
-      <button class="reset-btn" id="btn-playpause"><kbd>Space</kbd> start/pause</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-skip"><kbd>s</kbd> skip</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-reset"><kbd>r</kbd> reset</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-label"><kbd>↵</kbd> edit label</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-clearlabel"><kbd>del</kbd> clear label</button><br>
-      <button class="reset-btn" id="btn-export"><kbd>e</kbd> export</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-clearlog"><kbd>c</kbd> clear log</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-durations"><kbd>d</kbd> durations</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="autostart-btn">auto-start: breaks</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button><br>
-      <button class="reset-btn" id="btn-fullscreen"><kbd>f</kbd> fullscreen</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-logbreaks"><kbd>b</kbd> log breaks: off</button> &nbsp;·&nbsp;
-      <button class="reset-btn" id="btn-workout"><kbd>w</kbd> workout: off</button>
+      <div class="instr-row">
+        <span class="instr-section">timer</span>
+        <div>
+          <button class="reset-btn" id="btn-playpause"><kbd>space</kbd> start/pause</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-skip"><kbd>s</kbd> skip</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-reset"><kbd>r</kbd> reset</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-durations"><kbd>d</kbd> durations</button>
+          <br class="instr-br">
+          <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="autostart-btn">auto-start: breaks</button>
+        </div>
+      </div>
+      <div class="instr-row">
+        <span class="instr-section">task</span>
+        <div>
+          <button class="reset-btn" id="btn-label"><kbd>↵</kbd> edit</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-clearlabel"><kbd>del</kbd> clear</button>
+        </div>
+      </div>
+      <div class="instr-row">
+        <span class="instr-section">log</span>
+        <div>
+          <button class="reset-btn" id="btn-export"><kbd>e</kbd> export</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-clearlog"><kbd>c</kbd> clear</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-logbreaks"><kbd>b</kbd> log breaks: off</button>
+        </div>
+      </div>
+      <div class="instr-row">
+        <span class="instr-section">mode</span>
+        <div>
+          <button class="reset-btn" id="btn-fullscreen"><kbd>f</kbd> fullscreen</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-workout"><kbd>w</kbd> workout: off</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1309,6 +1334,7 @@ function resizeLabelInput() {
 }
 
 labelInput.addEventListener('input', () => { saveLabel(); resizeLabelInput(); });
+window.addEventListener('resize', resizeLabelInput);
 
 /* Strip newlines on paste so the label stays logically single-line */
 labelInput.addEventListener('paste', e => {
