@@ -102,22 +102,23 @@
 
     .tomato { cursor: pointer; padding: 2px; border-radius: 4px; line-height: 0; display: inline-block; vertical-align: bottom; }
     .tomato.active { background: var(--card); }
+    .ins-tomato-row .tomato.active { background: var(--card2); }
     .tomato svg { width: 1.2em; height: 1.2em; display: block; }
-    #pomo-detail svg { width: 1em; height: 1em; display: inline-block; vertical-align: middle; }
+    #pomo-detail svg, .ins-detail-card svg { width: 1em; height: 1em; display: inline-block; vertical-align: middle; }
 
     #pomo-detail {
       display: none;
       background: var(--card);
       border-radius: var(--radius);
       padding: 10px 14px;
-      margin-bottom: 22px;
+      margin: 0 0 22px;
       font-size: 0.78rem;
       color: var(--dim);
       line-height: 1.7;
     }
     #pomo-detail.visible { display: block; }
     #pomo-detail .detail-label { color: var(--text); font-weight: 500; }
-    #pomo-detail .detail-top { display: flex; justify-content: space-between; align-items: center; }
+    #pomo-detail .detail-top, .ins-detail-card .detail-top { display: flex; justify-content: space-between; align-items: center; }
     .detail-label-input {
       background: transparent;
       border: none;
@@ -138,11 +139,13 @@
       border: none;
       color: var(--dim);
       cursor: pointer;
-      font-size: 1rem;
-      line-height: 1;
+      font-size: inherit;
       padding: 0 0 0 10px;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
     }
+    .detail-trash-btn svg { width: 0.95em; height: 0.95em; }
     .detail-trash-btn:hover { color: var(--text); }
 
     .instructions {
@@ -323,11 +326,75 @@
     }
     .gh-link:hover { opacity: 1; }
 
+    /* ── Insights overlay ── */
+    #insights-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      z-index: 2000;
+      overflow-y: auto;
+      padding: 40px 20px;
+      box-sizing: border-box;
+    }
+    #insights-overlay.visible { display: flex; }
+    #insights {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 520px;
+      box-sizing: border-box;
+    }
+    .ins-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 32px;
+      font-size: 0.78rem;
+    }
+    .ins-stat-label {
+      display: block;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--dim);
+      opacity: 0.6;
+      margin-bottom: 1px;
+    }
+    .ins-stat-value { color: var(--text); }
+    .ins-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 16px 0; }
+    .ins-day { margin-bottom: 10px; }
+    .ins-day-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.7rem;
+      margin-bottom: 3px;
+    }
+    .ins-day-date { color: var(--text); font-weight: 500; }
+    .ins-day-meta { color: var(--dim); font-size: 0.65rem; }
+    .ins-tomato-row { font-size: 1.1rem; line-height: 1.6; }
+    .ins-detail-card {
+      display: none;
+      background: var(--card2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 5px;
+      font-size: 0.78rem;
+      color: var(--dim);
+      line-height: 1.7;
+    }
+    .ins-detail-card.visible { display: block; }
+
     #toast {
       position: fixed;
-      bottom: 2rem;
+      top: 1.25rem;
       left: 50%;
-      transform: translateX(-50%) translateY(0.4rem);
+      transform: translateX(-50%) translateY(-0.4rem);
       background: var(--card);
       color: var(--dim);
       font-size: 0.72rem;
@@ -360,13 +427,13 @@
       <div class="instr-row">
         <span class="instr-section">timer</span>
         <div>
-          <button class="reset-btn" id="btn-playpause"><kbd>space</kbd> start/pause</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-playpause"><kbd>spc</kbd> start/pause</button> &nbsp;·&nbsp;
           <button class="reset-btn" id="btn-skip"><kbd>s</kbd> skip</button> &nbsp;·&nbsp;
           <button class="reset-btn" id="btn-reset"><kbd>r</kbd> reset</button> &nbsp;·&nbsp;
           <button class="reset-btn" id="btn-durations"><kbd>d</kbd> durations</button>
           <br class="instr-br">
           <button class="reset-btn" id="btn-sound"><kbd>m</kbd> sound: on</button> &nbsp;·&nbsp;
-          <button class="reset-btn" id="autostart-btn">auto-start: breaks</button>
+          <button class="reset-btn" id="autostart-btn"><kbd>c</kbd> continue: breaks</button>
         </div>
       </div>
       <div class="instr-row">
@@ -379,8 +446,8 @@
       <div class="instr-row">
         <span class="instr-section">log</span>
         <div>
+          <button class="reset-btn" id="btn-archive"><kbd>a</kbd> archive</button> &nbsp;·&nbsp;
           <button class="reset-btn" id="btn-export"><kbd>e</kbd> export</button> &nbsp;·&nbsp;
-          <button class="reset-btn" id="btn-clearlog"><kbd>c</kbd> clear</button> &nbsp;·&nbsp;
           <button class="reset-btn" id="btn-logbreaks"><kbd>b</kbd> log breaks: off</button>
         </div>
       </div>
@@ -388,7 +455,8 @@
         <span class="instr-section">mode</span>
         <div>
           <button class="reset-btn" id="btn-fullscreen"><kbd>f</kbd> fullscreen</button> &nbsp;·&nbsp;
-          <button class="reset-btn" id="btn-workout"><kbd>w</kbd> workout: off</button>
+          <button class="reset-btn" id="btn-workout"><kbd>w</kbd> workout: off</button> &nbsp;·&nbsp;
+          <button class="reset-btn" id="btn-insights"><kbd>i</kbd> insights</button>
         </div>
       </div>
     </div>
@@ -442,6 +510,8 @@
   </div>
 
   <a class="gh-link" href="https://github.com/moltaire/pomodoro" target="_blank" rel="noopener">github</a>
+
+  <div id="insights-overlay"><div id="insights"></div></div>
 
   <div id="toast"></div>
 
@@ -542,6 +612,7 @@ let workoutTasks       = [];   // string[], persisted
 let workoutIndex       = 0;    // runtime only
 let workoutNoLongBreak = true; // persisted
 let focusSessionCount  = 0;    // persisted; drives long break frequency
+let logViewStart       = 0;    // index into log; entries before this are archived
 
 /* ── localStorage ── */
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
@@ -556,6 +627,7 @@ function saveWorkoutTasks()       { lsSet('pomo_workout_tasks',        JSON.stri
 function saveWorkoutMode()        { lsSet('pomo_workout_mode',         workoutMode ? '1' : ''); }
 function saveWorkoutNoLongBreak() { lsSet('pomo_workout_no_longbreak', workoutNoLongBreak ? '1' : ''); }
 function saveFocusCount()         { lsSet('pomo_focus_count',          String(focusSessionCount)); }
+function saveLogViewStart()       { lsSet('pomo_log_view_start',       String(logViewStart)); }
 function saveDurations() {
   lsSet('pomo_focus_secs',      String(focusSecs));
   lsSet('pomo_break_secs',      String(breakSecs));
@@ -594,6 +666,10 @@ function loadWorkoutNoLongBreak() {
 function loadFocusCount() {
   const v = parseInt(lsGet('pomo_focus_count'), 10);
   if (!isNaN(v) && v >= 0) focusSessionCount = v;
+}
+function loadLogViewStart() {
+  const v = parseInt(lsGet('pomo_log_view_start'), 10);
+  if (!isNaN(v) && v >= 0) logViewStart = v;
 }
 function loadDurations() {
   const f   = parseInt(lsGet('pomo_focus_secs'),      10);
@@ -859,6 +935,65 @@ function updateTitle() {
 /* ── Pomo detail panel ── */
 let detailIndex = null;
 
+const TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h10M4 3V1.5h4V3M2 3l.8 8.5a1 1 0 001 .9h4.4a1 1 0 001-.9L10 3M4.5 6v4M7.5 6v4"/></svg>`;
+
+function buildDetailPanel(detailEl, entry, absIdx, tomatoEl, afterDelete) {
+  detailEl.innerHTML = '';
+  const icon     = entry.type === 'break' ? SVG_SQUARE : entry.skipped ? SVG_HALF_CIRCLE : SVG_CIRCLE;
+  const status   = entry.type === 'break' ? 'break' : entry.skipped ? 'skipped' : 'completed';
+  const duration = fmtDur(entry.durationSecs ?? 0);
+  const timeStr  = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
+
+  const top = document.createElement('div');
+  top.className = 'detail-top';
+
+  const labelSpan = document.createElement('span');
+  labelSpan.className = 'detail-label';
+  labelSpan.innerHTML = icon + ' ';
+
+  const inp = document.createElement('input');
+  inp.className   = 'detail-label-input';
+  inp.type        = 'text';
+  inp.value       = entry.label || '';
+  inp.placeholder = entry.type === 'break' ? 'Break' : 'Focus';
+  inp.addEventListener('click',   e => e.stopPropagation());
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); e.stopPropagation(); });
+  inp.addEventListener('blur', () => {
+    const val = inp.value.trim() || null;
+    log[absIdx].label = val;
+    saveLog();
+    if (tomatoEl) {
+      const parts = [];
+      if (val) parts.push(val);
+      if (entry.skipped) parts.push('skipped');
+      if (entry.endedAt) parts.push(fmtTime(entry.endedAt));
+      tomatoEl.title = parts.join(' · ');
+    }
+  });
+  labelSpan.appendChild(inp);
+
+  const trash = document.createElement('button');
+  trash.className = 'detail-trash-btn';
+  trash.title     = 'Delete';
+  trash.innerHTML = TRASH_SVG;
+  trash.addEventListener('click', e => {
+    e.stopPropagation();
+    log.splice(absIdx, 1);
+    if (absIdx < logViewStart) { logViewStart = Math.max(0, logViewStart - 1); saveLogViewStart(); }
+    saveLog();
+    afterDelete();
+  });
+
+  top.appendChild(labelSpan);
+  top.appendChild(trash);
+
+  const meta = document.createElement('div');
+  meta.innerHTML = status + ' &nbsp;·&nbsp; ' + duration + ' &nbsp;·&nbsp; ' + timeStr;
+
+  detailEl.appendChild(top);
+  detailEl.appendChild(meta);
+}
+
 function fmtDur(secs) {
   const m = Math.floor(secs / 60), s = secs % 60;
   return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
@@ -868,8 +1003,9 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function updateArrow(i) {
-  const tomato = document.querySelectorAll('.tomato')[i];
+function updateArrow(absIdx) {
+  const domIdx = absIdx - logViewStart;
+  const tomato = document.querySelectorAll('#tomato-row .tomato')[domIdx];
   const row    = document.getElementById('tomato-row');
   if (!tomato || !row) return;
   const x = tomato.offsetLeft + tomato.offsetWidth / 2 - row.offsetLeft;
@@ -885,109 +1021,61 @@ function closePomoDetail() {
   d.innerHTML = '';
 }
 
-function showPomoDetail(i) {
+function showPomoDetail(absIdx) {
   const prev = detailIndex;
   closePomoDetail();
-  if (prev === i) return; /* tap same tomato → just close */
+  if (prev === absIdx) return; /* tap same tomato → just close */
 
-  detailIndex = i;
-  const entry = log[i];
-  document.querySelectorAll('.tomato')[i].classList.add('active');
+  detailIndex = absIdx;
+  const entry  = log[absIdx];
+  const domIdx = absIdx - logViewStart;
+  const tomatoEl = document.querySelectorAll('#tomato-row .tomato')[domIdx];
+  if (tomatoEl) tomatoEl.classList.add('active');
   document.getElementById('tomato-row').classList.add('detail-open');
 
-  const icon     = entry.type === 'break' ? SVG_SQUARE : entry.skipped ? SVG_HALF_CIRCLE : SVG_CIRCLE;
-  const status   = entry.type === 'break' ? 'break' : entry.skipped ? 'skipped' : 'completed';
-  const duration = fmtDur(entry.durationSecs ?? 0);
-  const timeStr  = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
-
   const d = document.getElementById('pomo-detail');
-  d.innerHTML = '';
-
-  /* top row: icon + editable label + trash */
-  const top = document.createElement('div');
-  top.className = 'detail-top';
-
-  const labelSpan = document.createElement('span');
-  labelSpan.className = 'detail-label';
-  labelSpan.innerHTML = icon + ' ';
-
-  const inp = document.createElement('input');
-  inp.className   = 'detail-label-input';
-  inp.type        = 'text';
-  inp.value       = entry.label || '';
-  inp.placeholder = entry.type === 'break' ? 'Break' : 'Focus';
-  inp.addEventListener('click',   e => e.stopPropagation());
-  inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') inp.blur();
-    e.stopPropagation();
-  });
-  inp.addEventListener('blur', () => {
-    const val = inp.value.trim() || null;
-    log[i].label = val;
-    saveLog();
-    const t = document.querySelectorAll('.tomato')[i];
-    if (t) {
-      const parts = [];
-      if (val) parts.push(val);
-      if (entry.skipped) parts.push('skipped');
-      if (entry.endedAt) parts.push(fmtTime(entry.endedAt));
-      t.title = parts.join(' · ');
-    }
-  });
-  labelSpan.appendChild(inp);
-
-  const trash = document.createElement('button');
-  trash.className   = 'detail-trash-btn';
-  trash.textContent = '×';
-  trash.addEventListener('click', e => {
-    e.stopPropagation();
-    log.splice(i, 1);
-    saveLog();
-    closePomoDetail();
-    renderLog();
-  });
-
-  top.appendChild(labelSpan);
-  top.appendChild(trash);
-
-  const meta = document.createElement('div');
-  meta.innerHTML = status + ' &nbsp;·&nbsp; ' + duration + ' &nbsp;·&nbsp; ' + timeStr;
-
-  d.appendChild(top);
-  d.appendChild(meta);
+  buildDetailPanel(d, entry, absIdx, tomatoEl, () => { closePomoDetail(); renderLog(); });
   d.classList.add('visible');
-  updateArrow(i);
+  updateArrow(absIdx);
 }
 
 document.addEventListener('click', () => { resumeAudio(); closePomoDetail(); });
 
 function renderLog() {
-  /* only close if the selected entry no longer exists (e.g. log cleared) */
-  if (detailIndex !== null && detailIndex >= log.length) closePomoDetail();
+  if (detailIndex !== null && (detailIndex < logViewStart || detailIndex >= log.length)) closePomoDetail();
 
   const row = document.getElementById('tomato-row');
   row.innerHTML = '';
-  log.forEach((entry, i) => {
-    const span = document.createElement('span');
-    span.className   = 'tomato';
-    if (i === detailIndex) span.classList.add('active');
+  for (let j = 0; j < log.length - logViewStart; j++) {
+    const absIdx = logViewStart + j;
+    const entry  = log[absIdx];
+    const span   = document.createElement('span');
+    span.className = 'tomato';
+    if (absIdx === detailIndex) span.classList.add('active');
     span.innerHTML = entry.type === 'break' ? SVG_SQUARE : entry.skipped ? SVG_HALF_CIRCLE : SVG_CIRCLE;
-    /* hover title */
     const parts = [];
     if (entry.label)   parts.push(entry.label);
     if (entry.skipped) parts.push('skipped');
     if (entry.endedAt) parts.push(fmtTime(entry.endedAt));
     if (parts.length)  span.title = parts.join(' · ');
-    span.addEventListener('click', e => { e.stopPropagation(); showPomoDetail(i); });
+    span.addEventListener('click', e => { e.stopPropagation(); showPomoDetail(absIdx); });
     row.appendChild(span);
-  });
-  /* reposition arrow if panel is still open */
-  if (detailIndex !== null && detailIndex < log.length) updateArrow(detailIndex);
+  }
+  if (detailIndex !== null && detailIndex >= logViewStart && detailIndex < log.length) updateArrow(detailIndex);
+}
+
+function archiveLog() {
+  logViewStart = log.length;
+  saveLogViewStart();
+  focusSessionCount = 0;
+  saveFocusCount();
+  closePomoDetail();
+  renderLog();
 }
 
 function renderAutoStartBtn() {
-  const states = { off: 'off', breaks: 'breaks', on: 'on' };
-  document.getElementById('autostart-btn').innerHTML = '<kbd>a</kbd> auto-start: ' + states[autoStartMode];
+  const states = { off: 'off', breaks: 'breaks', on: 'all' };
+  document.getElementById('autostart-btn').innerHTML = '<kbd>c</kbd> continue: ' + states[autoStartMode];
 }
 
 function renderSoundBtn() {
@@ -1291,24 +1379,19 @@ function _icsBlob(lines) {
   URL.revokeObjectURL(a.href);
 }
 
-function exportICSSummary() {
-  const entries = log.filter(e => e.startedAt && e.endedAt);
-  if (entries.length === 0) { labelInput.value = 'Focus first.'; saveLabel(); resizeLabelInput(); return; }
-
-  const first = entries[0];
-  const last  = entries[entries.length - 1];
+function _doExportSummary(entries) {
+  const valid = entries.filter(e => e.startedAt && e.endedAt);
+  if (valid.length === 0) return;
+  const first = valid[0], last = valid[valid.length - 1];
   const title = workoutMode ? 'Workout' : '🔴🟡🟦 pomodoro';
-
-  const desc = entries.map(entry => {
-    const timeRange = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
-    if (entry.type === 'break') return '🟦 ' + (entry.label || 'Break') + ' (' + fmtDur(entry.durationSecs ?? 0) + ') · ' + timeRange;
+  const desc  = valid.map(entry => {
+    const tr = fmtTime(entry.startedAt) + ' → ' + fmtTime(entry.endedAt);
+    if (entry.type === 'break') return '🟦 ' + (entry.label || 'Break') + ' (' + fmtDur(entry.durationSecs ?? 0) + ') · ' + tr;
     const label = entry.label || 'Focus';
-    return (entry.skipped ? '🟡' : '🔴') + ' ' + label + (entry.skipped ? ' – skipped' : '') + ' (' + fmtDur(entry.durationSecs ?? 0) + ') · ' + timeRange;
+    return (entry.skipped ? '🟡' : '🔴') + ' ' + label + (entry.skipped ? ' – skipped' : '') + ' (' + fmtDur(entry.durationSecs ?? 0) + ') · ' + tr;
   }).join('\n');
-
   _icsBlob([
-    'BEGIN:VCALENDAR', 'VERSION:2.0',
-    'PRODID:-//moltaire//Pomodoro//EN', 'CALSCALE:GREGORIAN',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//moltaire//Pomodoro//EN', 'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
     'UID:pomo-session-' + first.startedAt + '@pomodoro',
     'DTSTART:' + toICSDate(new Date(first.startedAt)),
@@ -1319,24 +1402,13 @@ function exportICSSummary() {
   ]);
 }
 
-function exportICSDetailed() {
-  const entries = log.filter(e => e.startedAt && e.endedAt);
-  if (entries.length === 0) { labelInput.value = 'Focus first.'; saveLabel(); resizeLabelInput(); return; }
-
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0',
-    'PRODID:-//moltaire//Pomodoro//EN', 'CALSCALE:GREGORIAN',
-  ];
-
-  entries.forEach((entry, i) => {
-    let summary;
-    if (entry.type === 'break') {
-      summary = '🟦 ' + (entry.label || 'Break');
-    } else if (entry.skipped) {
-      summary = '🟡' + (entry.label ? ' ' + entry.label : ' Focus');
-    } else {
-      summary = '🔴' + (entry.label ? ' ' + entry.label : ' Focus');
-    }
+function _doExportDetailed(entries) {
+  const valid = entries.filter(e => e.startedAt && e.endedAt);
+  if (valid.length === 0) return;
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//moltaire//Pomodoro//EN', 'CALSCALE:GREGORIAN'];
+  valid.forEach((entry, i) => {
+    const summary = entry.type === 'break' ? '🟦 ' + (entry.label || 'Break')
+      : (entry.skipped ? '🟡' : '🔴') + (entry.label ? ' ' + entry.label : ' Focus');
     lines.push('BEGIN:VEVENT');
     lines.push('UID:pomo-' + i + '-' + entry.startedAt + '@pomodoro');
     lines.push('DTSTART:' + toICSDate(new Date(entry.startedAt)));
@@ -1344,9 +1416,20 @@ function exportICSDetailed() {
     lines.push('SUMMARY:' + escapeICS(summary));
     lines.push('END:VEVENT');
   });
-
   lines.push('END:VCALENDAR');
   _icsBlob(lines);
+}
+
+function exportICSSummary() {
+  const entries = log.slice(logViewStart);
+  if (!entries.some(e => e.startedAt && e.endedAt)) { labelInput.value = 'Focus first.'; saveLabel(); resizeLabelInput(); return; }
+  _doExportSummary(entries);
+}
+
+function exportICSDetailed() {
+  const entries = log.slice(logViewStart);
+  if (!entries.some(e => e.startedAt && e.endedAt)) { labelInput.value = 'Focus first.'; saveLabel(); resizeLabelInput(); return; }
+  _doExportDetailed(entries);
 }
 
 /* ── Label input ── */
@@ -1370,6 +1453,205 @@ labelInput.addEventListener('paste', e => {
   saveLabel(); resizeLabelInput();
 });
 
+/* ── Insights ── */
+let insightsOpen = false;
+const _insOverlay = document.getElementById('insights-overlay');
+
+function openInsights()  { insightsOpen = true;  renderInsights(); _insOverlay.classList.add('visible'); }
+let _insOpenIdx = null, _insOpenCard = null, _insOpenSpan = null;
+function closeInsightsDetail() {
+  if (_insOpenCard) _insOpenCard.classList.remove('visible');
+  if (_insOpenSpan) _insOpenSpan.classList.remove('active');
+  _insOpenIdx = _insOpenCard = _insOpenSpan = null;
+}
+function closeInsights() { insightsOpen = false; closeInsightsDetail(); _insOverlay.classList.remove('visible'); }
+_insOverlay.addEventListener('click', e => { if (e.target === _insOverlay) closeInsights(); });
+document.getElementById('insights').addEventListener('click', () => closeInsightsDetail());
+
+function fmtHours(secs) {
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
+  if (h >= 10) return h + 'h';
+  if (h > 0)   return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+function fmtPeak(bin) {
+  const h   = bin * 2;
+  const fmt = n => n === 0 ? '12am' : n < 12 ? n + 'am' : n === 12 ? '12pm' : (n - 12) + 'pm';
+  return fmt(h) + '–' + fmt(h + 2);
+}
+
+function computeStats() {
+  const msPerDay  = 86400000;
+  const completed = log.filter(e => e.type !== 'break' && !e.skipped && e.startedAt);
+
+  const totalSessions = completed.length;
+  const totalSecs     = completed.reduce((s, e) => s + (e.durationSecs ?? 0), 0);
+
+  const todayKey      = new Date().toLocaleDateString();
+  const todayEntries  = completed.filter(e => new Date(e.startedAt).toLocaleDateString() === todayKey);
+  const todaySessions = todayEntries.length;
+  const todaySecs     = todayEntries.reduce((s, e) => s + (e.durationSecs ?? 0), 0);
+
+  /* streak */
+  const byDay = {};
+  completed.forEach(e => { byDay[new Date(e.startedAt).toLocaleDateString()] = true; });
+  let streak = 0;
+  const sd = new Date(); sd.setHours(0, 0, 0, 0);
+  if (!byDay[sd.toLocaleDateString()]) sd.setTime(sd.getTime() - msPerDay);
+  while (byDay[sd.toLocaleDateString()]) { streak++; sd.setTime(sd.getTime() - msPerDay); }
+
+  /* best week (Mon–Sun) */
+  const byWeek = {};
+  completed.forEach(e => {
+    const d   = new Date(e.startedAt);
+    const day = d.getDay();
+    const mon = new Date(d); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - (day === 0 ? 6 : day - 1));
+    const key = mon.toISOString().slice(0, 10);
+    if (!byWeek[key]) byWeek[key] = { n: 0, date: mon };
+    byWeek[key].n++;
+  });
+  let bestWeekSessions = 0, bestWeekDate = null;
+  Object.values(byWeek).forEach(w => { if (w.n > bestWeekSessions) { bestWeekSessions = w.n; bestWeekDate = w.date; } });
+
+  /* peak 2hr bin */
+  const bins = new Array(12).fill(0);
+  completed.forEach(e => { bins[Math.floor(new Date(e.startedAt).getHours() / 2)]++; });
+  const peakBin = bins.reduce((best, v, i) => v > bins[best] ? i : best, 0);
+
+  return { totalSessions, totalSecs, todaySessions, todaySecs, streak, bestWeekSessions, bestWeekDate, peakBin };
+}
+
+function renderInsights() {
+  _insOpenIdx = _insOpenCard = _insOpenSpan = null;
+  const s     = computeStats();
+  const panel = document.getElementById('insights');
+  panel.innerHTML = '';
+
+  /* stats grid */
+  const grid = document.createElement('div');
+  grid.className = 'ins-stats';
+  const todayStr   = s.todaySessions > 0 ? s.todaySessions + ' · ' + fmtHours(s.todaySecs) : '—';
+  const streakStr  = s.streak > 0 ? s.streak + ' day' + (s.streak !== 1 ? 's' : '') : '—';
+  const focusStr   = s.totalSessions > 0 ? fmtHours(s.totalSecs) : '—';
+  const bestWkStr  = s.bestWeekDate
+    ? s.bestWeekSessions + ' · ' + s.bestWeekDate.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    : '—';
+  const peakStr    = s.totalSessions > 0 ? fmtPeak(s.peakBin) : '—';
+  [
+    ['sessions', s.totalSessions || '—'],
+    ['streak',   streakStr],
+    ['focus',    focusStr],
+    ['best week', bestWkStr],
+    ['today',    todayStr],
+    ['peak',     peakStr],
+  ].forEach(([label, value]) => {
+    const el = document.createElement('div');
+    el.className = 'ins-stat';
+    el.innerHTML = `<span class="ins-stat-label">${label}</span><span class="ins-stat-value">${value}</span>`;
+    grid.appendChild(el);
+  });
+  panel.appendChild(grid);
+
+  if (log.length === 0) return;
+
+  const hr = document.createElement('hr');
+  hr.className = 'ins-divider';
+  panel.appendChild(hr);
+
+  /* history grouped by day, newest first */
+  const days = [], dayMap = {};
+  for (let i = log.length - 1; i >= 0; i--) {
+    const entry = log[i];
+    const d     = new Date(entry.startedAt || entry.endedAt || Date.now());
+    const key   = d.toLocaleDateString();
+    if (!dayMap[key]) { dayMap[key] = { entries: [], focusCount: 0, focusSecs: 0, date: d }; days.push(key); }
+    dayMap[key].entries.unshift({ entry, absIdx: i });
+    if (entry.type !== 'break' && !entry.skipped) { dayMap[key].focusCount++; dayMap[key].focusSecs += entry.durationSecs ?? 0; }
+  }
+
+  days.forEach(key => {
+    const dayData = dayMap[key];
+    const dayEl   = document.createElement('div');
+    dayEl.className = 'ins-day';
+
+    const header  = document.createElement('div');
+    header.className = 'ins-day-header';
+    const dateEl  = document.createElement('span');
+    dateEl.className = 'ins-day-date';
+    dateEl.textContent = dayData.date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+    const rightEl = document.createElement('span');
+    rightEl.style.cssText = 'display:inline-flex;align-items:baseline;gap:8px;';
+    const metaEl  = document.createElement('span');
+    metaEl.className = 'ins-day-meta';
+    if (dayData.focusCount > 0) metaEl.textContent = dayData.focusCount + ' · ' + fmtHours(dayData.focusSecs);
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'reset-btn';
+    exportBtn.textContent = 'export';
+    exportBtn.style.cssText = 'font-size:0.65rem;';
+    exportBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      _doExportSummary(dayData.entries.map(({entry}) => entry));
+    });
+    rightEl.appendChild(metaEl);
+    rightEl.appendChild(exportBtn);
+    header.appendChild(dateEl); header.appendChild(rightEl);
+    dayEl.appendChild(header);
+
+    const tRow      = document.createElement('div');
+    tRow.className  = 'ins-tomato-row';
+    const detailCard = document.createElement('div');
+    detailCard.className = 'ins-detail-card';
+    detailCard.addEventListener('click', e => e.stopPropagation());
+
+    dayData.entries.forEach(({ entry, absIdx }) => {
+      const span = document.createElement('span');
+      span.className = 'tomato';
+      span.innerHTML = entry.type === 'break' ? SVG_SQUARE : entry.skipped ? SVG_HALF_CIRCLE : SVG_CIRCLE;
+      const parts = [];
+      if (entry.label)   parts.push(entry.label);
+      if (entry.skipped) parts.push('skipped');
+      if (entry.endedAt) parts.push(fmtTime(entry.endedAt));
+      if (parts.length)  span.title = parts.join(' · ');
+
+      span.addEventListener('click', e => {
+        e.stopPropagation();
+        if (_insOpenIdx === absIdx) { closeInsightsDetail(); return; }
+        closeInsightsDetail();
+        _insOpenIdx = absIdx; _insOpenCard = detailCard; _insOpenSpan = span;
+        span.classList.add('active');
+        buildDetailPanel(detailCard, entry, absIdx, span, () => { closeInsightsDetail(); renderInsights(); renderLog(); });
+        detailCard.classList.add('visible');
+      });
+      tRow.appendChild(span);
+    });
+
+    dayEl.appendChild(tRow);
+    dayEl.appendChild(detailCard);
+    panel.appendChild(dayEl);
+  });
+
+  const clearHr = document.createElement('hr');
+  clearHr.className = 'ins-divider';
+  panel.appendChild(clearHr);
+
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'reset-btn';
+  clearBtn.textContent = 'clear all data';
+  clearBtn.style.cssText = 'font-size:0.68rem;';
+  clearBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!confirm('Delete all session history? This cannot be undone.')) return;
+    log = []; logViewStart = 0; focusSessionCount = 0;
+    saveLog(); saveLogViewStart(); saveFocusCount();
+    closePomoDetail();
+    renderLog();
+    renderInsights();
+  });
+  panel.appendChild(clearBtn);
+}
+
 /* ── Toast ── */
 let _toastTimer = null;
 const _toastEl = document.getElementById('toast');
@@ -1385,6 +1667,7 @@ document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   if (e.key === 'Escape') {
+    if (insightsOpen) { closeInsights(); return; }
     if (workoutModalOpen) { closeWorkoutModal(); return; }
     if (modalOpen) { closeTimerModal(); return; }
     if (document.activeElement === labelInput) { labelInput.blur(); return; }
@@ -1405,18 +1688,21 @@ document.addEventListener('keydown', e => {
 
   if (inLabel) return;
 
+  if (e.key === 'i' || e.key === 'I') { insightsOpen ? closeInsights() : openInsights(); return; }
+  if (insightsOpen) return;
+
   if (e.key === ' ')                  { e.preventDefault(); isRunning ? pause() : start(); }
   if (e.key === 's' || e.key === 'S') skip();
   if (e.key === 'r' || e.key === 'R') reset();
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); openTimerModal(); }
-  if (e.key === 'c' || e.key === 'C') { log = []; focusSessionCount = 0; saveLog(); saveFocusCount(); renderLog(); }
+  if (e.key === 'a' || e.key === 'A') { archiveLog(); }
   if (e.key === 'e') exportICSSummary();
   if (e.key === 'E') exportICSDetailed();
   if (e.key === 'Backspace')          { e.preventDefault(); labelInput.value = ''; saveLabel(); resizeLabelInput(); }
-  if (e.key === 'a' || e.key === 'A') {
+  if (e.key === 'c' || e.key === 'C') {
     autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
     saveAutoStart(); renderAutoStartBtn();
-    showToast('auto-start: ' + autoStartMode);
+    showToast('continue: ' + (autoStartMode === 'on' ? 'all' : autoStartMode));
   }
   if (e.key === 'm' || e.key === 'M') {
     soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
@@ -1451,7 +1737,8 @@ document.getElementById('btn-label').addEventListener('click', () => {
   if (document.activeElement === labelInput) labelInput.blur(); else labelInput.focus();
 });
 document.getElementById('btn-clearlabel').addEventListener('click', () => { labelInput.value = ''; saveLabel(); resizeLabelInput(); });
-document.getElementById('btn-clearlog').addEventListener('click', () => { log = []; focusSessionCount = 0; saveLog(); saveFocusCount(); renderLog(); });
+document.getElementById('btn-archive').addEventListener('click', () => { archiveLog(); });
+document.getElementById('btn-insights').addEventListener('click', () => { insightsOpen ? closeInsights() : openInsights(); });
 /* short press = summary, long press (500ms) = detailed */
 (function () {
   const btn = document.getElementById('btn-export');
@@ -1484,6 +1771,8 @@ document.getElementById('btn-fullscreen').addEventListener('click', toggleFullsc
 loadDurations();
 secondsLeft = focusSecs;
 loadLog();
+loadLogViewStart();
+if (logViewStart > log.length) { logViewStart = log.length; saveLogViewStart(); }
 loadLabel();
 loadAutoStart();
 loadSound();
