@@ -322,6 +322,26 @@
       transition: opacity 0.15s;
     }
     .gh-link:hover { opacity: 1; }
+
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(0.4rem);
+      background: var(--card);
+      color: var(--dim);
+      font-size: 0.72rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s, transform 0.15s;
+      white-space: nowrap;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   </style>
 </head>
 
@@ -422,6 +442,9 @@
   </div>
 
   <a class="gh-link" href="https://github.com/moltaire/pomodoro" target="_blank" rel="noopener">github</a>
+
+  <div id="toast"></div>
+
 
 <script>
 
@@ -1347,6 +1370,16 @@ labelInput.addEventListener('paste', e => {
   saveLabel(); resizeLabelInput();
 });
 
+/* ── Toast ── */
+let _toastTimer = null;
+const _toastEl = document.getElementById('toast');
+function showToast(msg) {
+  _toastEl.textContent = msg;
+  _toastEl.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => _toastEl.classList.remove('show'), 1600);
+}
+
 document.addEventListener('keydown', e => {
   resumeAudio();
   if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1383,12 +1416,14 @@ document.addEventListener('keydown', e => {
   if (e.key === 'a' || e.key === 'A') {
     autoStartMode = autoStartMode === 'off' ? 'breaks' : autoStartMode === 'breaks' ? 'on' : 'off';
     saveAutoStart(); renderAutoStartBtn();
+    showToast('auto-start: ' + autoStartMode);
   }
   if (e.key === 'm' || e.key === 'M') {
     soundMode = soundMode === 'on' ? 'finish' : soundMode === 'finish' ? 'off' : 'on';
     saveSound(); renderSoundBtn();
+    showToast('sound: ' + soundMode);
   }
-  if (e.key === 'b' || e.key === 'B') { logBreaks = !logBreaks; saveLogBreaks(); renderLogBreaksBtn(); }
+  if (e.key === 'b' || e.key === 'B') { logBreaks = !logBreaks; saveLogBreaks(); renderLogBreaksBtn(); showToast('log breaks: ' + (logBreaks ? 'on' : 'off')); }
   if (e.key === 'f' || e.key === 'F') toggleFullscreen();
   if (e.key === 'w' || e.key === 'W') openWorkoutModal();
   if (e.key === 'h' || e.key === 'H') toggleHints();
