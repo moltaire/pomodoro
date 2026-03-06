@@ -117,7 +117,7 @@
       line-height: 1.7;
     }
     #pomo-detail.visible { display: block; }
-    #pomo-detail .detail-label { color: var(--text); font-weight: 500; }
+    #pomo-detail .detail-label { color: var(--text); font-weight: 500; flex: 1; min-width: 0; display: flex; align-items: center; }
     #pomo-detail .detail-top, .ins-detail-card .detail-top { display: flex; justify-content: space-between; align-items: center; }
     .detail-label-input {
       background: transparent;
@@ -129,8 +129,8 @@
       font-weight: 500;
       color: var(--text);
       padding: 0;
-      width: 16ch;
-      max-width: 40ch;
+      flex: 1;
+      min-width: 0;
     }
     .detail-label-input:focus { border-bottom-color: var(--dim); }
     .detail-label-input::placeholder { color: var(--dim); font-weight: 400; }
@@ -1483,15 +1483,16 @@ function fmtPeak(bin) {
 
 function computeStats() {
   const msPerDay  = 86400000;
-  const completed = log.filter(e => e.type !== 'break' && !e.skipped && e.startedAt);
+  const focusAll  = log.filter(e => e.type !== 'break' && e.startedAt);
+  const completed = focusAll.filter(e => !e.skipped);
 
   const totalSessions = completed.length;
-  const totalSecs     = completed.reduce((s, e) => s + (e.durationSecs ?? 0), 0);
+  const totalSecs     = focusAll.reduce((s, e) => s + (e.durationSecs ?? 0), 0);
 
   const todayKey      = new Date().toLocaleDateString();
-  const todayEntries  = completed.filter(e => new Date(e.startedAt).toLocaleDateString() === todayKey);
-  const todaySessions = todayEntries.length;
-  const todaySecs     = todayEntries.reduce((s, e) => s + (e.durationSecs ?? 0), 0);
+  const todaySessions = completed.filter(e => new Date(e.startedAt).toLocaleDateString() === todayKey).length;
+  const todaySecs     = focusAll.filter(e => new Date(e.startedAt).toLocaleDateString() === todayKey)
+                                 .reduce((s, e) => s + (e.durationSecs ?? 0), 0);
 
   /* streak */
   const byDay = {};
@@ -1567,7 +1568,7 @@ function renderInsights() {
     const key   = d.toLocaleDateString();
     if (!dayMap[key]) { dayMap[key] = { entries: [], focusCount: 0, focusSecs: 0, date: d }; days.push(key); }
     dayMap[key].entries.unshift({ entry, absIdx: i });
-    if (entry.type !== 'break' && !entry.skipped) { dayMap[key].focusCount++; dayMap[key].focusSecs += entry.durationSecs ?? 0; }
+    if (entry.type !== 'break') { if (!entry.skipped) dayMap[key].focusCount++; dayMap[key].focusSecs += entry.durationSecs ?? 0; }
   }
 
   days.forEach(key => {
