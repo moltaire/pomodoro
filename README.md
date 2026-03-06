@@ -30,6 +30,8 @@ Vibe coded with [Claude](https://claude.ai).
 | `b` | toggle break logging |
 | `f` | toggle fullscreen |
 | `w` | workout mode |
+| `i` | toggle insights panel |
+| `h` / margin double click | toggle instruction visibility |
 
 ## workout mode
 
