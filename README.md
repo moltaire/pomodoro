@@ -18,14 +18,14 @@ Vibe coded with [Claude](https://claude.ai).
 | key | action |
 |-----|--------|
 | `Space` | start / pause |
-| `s` | skip |
-| `r` | reset |
-| `↵` | edit session label |
-| `del` | clear label |
+| `s` | skip this timer |
+| `r` | reset this timer |
+| `↵` | edit task label |
+| `del` | clear task label |
 | `e` / `E` | export calendar (summary / detailed) |
-| `c` | clear log |
+| `a` | archive log entries |
 | `d` | set durations |
-| `a` | cycle auto-start (off → breaks → on) |
+| `c` | cycle auto-continuation (off → breaks → on) |
 | `m` | cycle sound (on → finish → off) |
 | `b` | toggle break logging |
 | `f` | toggle fullscreen |
